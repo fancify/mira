@@ -12,7 +12,7 @@ STATIC_DIR = Path(__file__).parent.parent / "static"
 if STATIC_DIR.exists():
     api.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="static")
 
-@cli.command()
+@cli.command("serve")
 def serve(
     port: int = typer.Option(8888, help="Port to listen on"),
     host: str = typer.Option("127.0.0.1", help="Host to bind"),
