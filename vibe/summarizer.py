@@ -1,4 +1,5 @@
-"""AI-powered project summarizer using Claude API."""
+"""AI-powered project summarizer using OpenRouter API."""
+import time
 import json
 from pathlib import Path
 from typing import Optional
@@ -95,18 +96,30 @@ def _build_prompt(project_data: dict) -> str:
 只输出上述内容，不要解释，不要废话。"""
 
 
-def generate_summary(project_data: dict, model: str = "claude-haiku-4-5-20251001") -> tuple[Optional[str], Optional[str]]:
-    """Call Claude API to generate a project summary. Returns (text, error)."""
+def generate_summary(project_data: dict, model: str = "google/gemma-4-26b-a4b-it:free") -> tuple[Optional[str], Optional[str]]:
+    """Call OpenRouter API to generate a project summary. Returns (text, error)."""
     try:
-        import anthropic
-        client = anthropic.Anthropic()
+        import httpx
+        from vibe.config import load_global_config
+        cfg = load_global_config()
+        api_key = cfg.get("openrouter_api_key")
+        if not api_key:
+            return None, "openrouter_api_key not set in ~/.vibe.yaml"
+
         prompt = _build_prompt(project_data)
-        message = client.messages.create(
-            model=model,
-            max_tokens=1024,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        return message.content[0].text.strip(), None
+        for attempt in range(3):
+            resp = httpx.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json={"model": model, "max_tokens": 1024, "messages": [{"role": "user", "content": prompt}]},
+                timeout=60,
+            )
+            if resp.status_code == 429:
+                time.sleep(5 * (attempt + 1))
+                continue
+            resp.raise_for_status()
+            return resp.json()["choices"][0]["message"]["content"].strip(), None
+        return None, "rate limited after 3 attempts"
     except Exception as e:
         return None, str(e)
 
