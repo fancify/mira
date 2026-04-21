@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 from vibe.models import LocInfo, LocLanguage
 
-_EXCLUDE_DIRS = {".git", "node_modules", ".venv", "__pycache__", ".mypy_cache", "dist", "build"}
+_EXCLUDE_DIRS = {".git", "node_modules", ".venv", "venv", "__pycache__", ".mypy_cache", "dist", "build"}
 _CODE_EXTENSIONS = {
     ".py": "Python", ".js": "JavaScript", ".ts": "TypeScript",
     ".tsx": "TypeScript", ".jsx": "JavaScript", ".go": "Go",
