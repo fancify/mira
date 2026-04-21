@@ -1,4 +1,3 @@
-import pytest
 from pathlib import Path
 from vibe.config import load_global_config, load_project_config
 
@@ -13,7 +12,7 @@ def test_load_global_config_defaults(tmp_path):
 def test_load_global_config_from_file(tmp_path):
     (tmp_path / "vibe.yaml").write_text("scan_dirs:\n  - ~/projects\nport: 9000\n")
     cfg = load_global_config(tmp_path / "vibe.yaml")
-    assert "~/projects" in cfg["scan_dirs"]
+    assert not cfg["scan_dirs"][0].startswith("~")
     assert cfg["port"] == 9000
 
 
@@ -27,3 +26,9 @@ def test_load_project_config_present(tmp_path):
     cfg = load_project_config(tmp_path)
     assert cfg["name"] == "TestProj"
     assert cfg["status"] == "active"
+
+
+def test_scan_dirs_tilde_expanded(tmp_path):
+    (tmp_path / "vibe.yaml").write_text("scan_dirs:\n  - ~/projects\n")
+    cfg = load_global_config(tmp_path / "vibe.yaml")
+    assert not cfg["scan_dirs"][0].startswith("~")
