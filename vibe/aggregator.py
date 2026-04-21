@@ -23,7 +23,15 @@ def _safe(fn, *args, default=None):
 
 
 def extract_arch_summary(path: Path) -> Optional[str]:
-    """Extract architecture summary from README.md ## 架构 section."""
+    """Extract architecture summary: prefer docs/vibe-summary.md, fall back to README ## 架构."""
+    # AI-generated summary takes priority
+    vibe_summary = path / "docs" / "vibe-summary.md"
+    if vibe_summary.exists():
+        try:
+            return vibe_summary.read_text(encoding="utf-8", errors="replace").strip()
+        except Exception:
+            pass
+
     readme = path / "README.md"
     if not readme.exists():
         return None
