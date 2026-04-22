@@ -1411,9 +1411,9 @@ body {
 }
 .skin-btn:hover { background: var(--accent); color: #fff; }
 .skin-picker {
-  display: none; position: absolute; top: calc(100% + 8px); right: 0;
+  display: none; position: fixed;
   background: var(--card); border: 1px solid var(--border);
-  border-radius: 10px; padding: 10px; z-index: 150;
+  border-radius: 10px; padding: 10px; z-index: 9999;
   box-shadow: 0 8px 32px rgba(0,0,0,.5); min-width: 180px;
 }
 .skin-picker.open { display: block; }
@@ -2983,7 +2983,8 @@ function renderSkinPicker() {
     `<div class="skin-grid">` +
     SKINS.map(s =>
       `<div class="skin-card ${s.id === current ? 'active' : ''}"
-            onclick="applySkin('${s.id}');toggleSkinPicker();">
+            data-skin-id="${escHtml(s.id)}"
+            onclick="applySkin(this.dataset.skinId);toggleSkinPicker();">
         <div class="skin-preview">
           <div style="background:${s.preview[0]}"></div>
           <div style="background:${s.preview[1]}"></div>
@@ -2997,7 +2998,13 @@ function renderSkinPicker() {
 function toggleSkinPicker() {
   const picker = document.getElementById('skin-picker');
   const open = picker.classList.toggle('open');
-  if (open) renderSkinPicker();
+  if (open) {
+    renderSkinPicker();
+    const btn = document.getElementById('skin-btn');
+    const rect = btn.getBoundingClientRect();
+    picker.style.top = (rect.bottom + 8) + 'px';
+    picker.style.right = (window.innerWidth - rect.right) + 'px';
+  }
 }
 
 document.addEventListener('click', e => {
