@@ -1399,6 +1399,41 @@ body {
 .chat-send:hover { background: var(--accent-dim); }
 .chat-send:disabled { opacity: .45; cursor: default; }
 @media (max-width: 480px) { .chat-panel { width: 100vw; } }
+/* ── Skin Picker ────────────────────────────────── */
+.skin-wrap { position: relative; }
+.skin-btn {
+  background: rgba(var(--accent-rgb), 0.15);
+  border: 1px solid var(--accent);
+  color: var(--accent-light);
+  font-size: 13px; padding: 5px 14px;
+  border-radius: 6px; cursor: pointer;
+  transition: all .15s;
+}
+.skin-btn:hover { background: var(--accent); color: #fff; }
+.skin-picker {
+  display: none; position: absolute; top: calc(100% + 8px); right: 0;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 10px; padding: 10px; z-index: 150;
+  box-shadow: 0 8px 32px rgba(0,0,0,.5); min-width: 180px;
+}
+.skin-picker.open { display: block; }
+.skin-picker-label {
+  font-size: 10px; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; padding: 0 2px;
+}
+.skin-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.skin-card {
+  border: 1px solid var(--border); border-radius: 7px;
+  padding: 8px; cursor: pointer; transition: border-color .15s;
+}
+.skin-card:hover { border-color: var(--accent); }
+.skin-card.active { border-color: var(--accent); background: rgba(var(--accent-rgb), .1); }
+.skin-preview {
+  height: 32px; border-radius: 4px; overflow: hidden;
+  display: grid; grid-template-columns: 1fr 1fr; margin-bottom: 6px;
+}
+.skin-preview div { height: 100%; }
+.skin-name { font-size: 11px; color: var(--text-sec); text-align: center; }
 </style>
 </head>
 <body>
@@ -1408,6 +1443,10 @@ body {
   <span class="topbar-title">⚡ Mira</span>
   <div class="topbar-spacer"></div>
   <button class="refresh-btn" onclick="showImportModal()" style="background:#1e3a28;border-color:#4a7c59;color:#7fc794">+ 导入项目</button>
+  <div class="skin-wrap">
+    <button class="skin-btn" id="skin-btn" onclick="toggleSkinPicker()" aria-label="切换皮肤">🎨 皮肤</button>
+    <div class="skin-picker" id="skin-picker"></div>
+  </div>
   <button class="refresh-btn" id="refresh-btn" onclick="loadProjects()">↻ 刷新</button>
 </div>
 
@@ -2924,6 +2963,51 @@ async function sendChat() {
     input.focus();
   }
 }
+
+// ─── Skin System ──────────────────────────────────────────────────────────────
+const SKINS = [
+  { id: 'default', name: '深空默认', preview: ['#0f1117', '#4f46e5'] },
+];
+
+function applySkin(id) {
+  const skin = SKINS.find(s => s.id === id) ? id : 'default';
+  document.documentElement.dataset.theme = skin;
+  localStorage.setItem('mira-skin', skin);
+}
+
+function renderSkinPicker() {
+  const picker = document.getElementById('skin-picker');
+  const current = document.documentElement.dataset.theme || 'default';
+  picker.innerHTML =
+    `<div class="skin-picker-label">选择皮肤</div>` +
+    `<div class="skin-grid">` +
+    SKINS.map(s =>
+      `<div class="skin-card ${s.id === current ? 'active' : ''}"
+            onclick="applySkin('${s.id}');toggleSkinPicker();">
+        <div class="skin-preview">
+          <div style="background:${s.preview[0]}"></div>
+          <div style="background:${s.preview[1]}"></div>
+        </div>
+        <div class="skin-name">${escHtml(s.name)}</div>
+      </div>`
+    ).join('') +
+    `</div>`;
+}
+
+function toggleSkinPicker() {
+  const picker = document.getElementById('skin-picker');
+  const open = picker.classList.toggle('open');
+  if (open) renderSkinPicker();
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.skin-wrap')) {
+    document.getElementById('skin-picker')?.classList.remove('open');
+  }
+});
+
+// Restore saved skin on load
+applySkin(localStorage.getItem('mira-skin') || 'default');
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 loadProjects();
