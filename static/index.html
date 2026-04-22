@@ -2842,6 +2842,7 @@ async function sendChat() {
   _appendChatMsg('user', text);
   const botEl = _appendChatMsg('assistant', '▍');
   let fullText = '';
+  let reader;
 
   try {
     const resp = await fetch('/api/chat', {
@@ -2851,7 +2852,7 @@ async function sendChat() {
     });
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
 
-    const reader = resp.body.getReader();
+    reader = resp.body.getReader();
     const decoder = new TextDecoder();
     let buf = '';
 
@@ -2882,10 +2883,12 @@ async function sendChat() {
     botEl.textContent = fullText || botEl.textContent.replace('▍', '');
     chatHistory.push({role: 'user', content: text});
     chatHistory.push({role: 'assistant', content: fullText});
+    if (chatHistory.length > 40) chatHistory = chatHistory.slice(-40);
   } catch(e) {
     botEl.textContent = '连接失败：' + e.message;
     botEl.style.color = 'var(--red)';
   } finally {
+    reader?.cancel();
     sendBtn.disabled = false;
     input.focus();
   }
