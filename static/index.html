@@ -2881,9 +2881,11 @@ async function sendChat() {
       }
     }
     botEl.textContent = fullText || botEl.textContent.replace('▍', '');
-    chatHistory.push({role: 'user', content: text});
-    chatHistory.push({role: 'assistant', content: fullText});
-    if (chatHistory.length > 40) chatHistory = chatHistory.slice(-40);
+    if (fullText) {
+      chatHistory.push({role: 'user', content: text});
+      chatHistory.push({role: 'assistant', content: fullText});
+      if (chatHistory.length > 40) chatHistory = chatHistory.slice(-40);
+    }
   } catch(e) {
     botEl.textContent = '连接失败：' + e.message;
     botEl.style.color = 'var(--red)';

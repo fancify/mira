@@ -603,8 +603,6 @@ async def chat_endpoint(body: dict):
         raise HTTPException(status_code=400, detail="message required")
 
     async def generate():
-        global _alerts
-
         projects = await _asyncio.to_thread(get_all_projects)
         system_prompt = _build_system_prompt(projects)
 
@@ -662,9 +660,9 @@ async def chat_endpoint(body: dict):
                     cwd = args.get("working_dir", "~")
                     output = await _asyncio.to_thread(_run_shell, cmd, cwd)
                     yield f"data: {_json.dumps({'type': 'tool_exec', 'command': cmd, 'output': output})}\n\n"
-                    messages.append({"role": "tool", "content": output})
+                    messages.append({"role": "tool", "content": output, "tool_call_id": tc.get("id", "")})
                 else:
-                    messages.append({"role": "tool", "content": f"[未知工具：{fn.get('name')}]"})
+                    messages.append({"role": "tool", "content": f"[未知工具：{fn.get('name')}]", "tool_call_id": tc.get("id", "")})
 
         yield f"data: {_json.dumps({'type': 'error', 'content': '工具调用轮次超限'})}\n\n"
 
