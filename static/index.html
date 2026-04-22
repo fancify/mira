@@ -98,6 +98,31 @@
   --font-mono: 'Ark Pixel Font', monospace;
 }
 
+[data-theme="pixel-cyber"] {
+  --bg: #000d1a;
+  --card: #001428;
+  --border: #00ccff;
+  --accent: #ff0066;
+  --accent-dim: #cc0052;
+  --accent-rgb: 255,0,102;
+  --accent-light: #00ffcc;
+  --accent-light-rgb: 0,255,204;
+  --text: #cce8ff;
+  --text-sec: #4d99cc;
+  --text-muted: #1e4d6b;
+  --text-deep: #0a2033;
+  --green: #00ff66;
+  --green-dim: #00cc52;
+  --orange: #ff9900;
+  --red: #ff2244;
+  --purple: #cc00ff;
+  --yellow: #ffdd00;
+  --card-deep: #000810;
+  --border-subtle-rgb: 0,180,220;
+  --font-ui: 'Ark Pixel Font', monospace;
+  --font-mono: 'Ark Pixel Font', monospace;
+}
+
 body {
   background: var(--bg);
   color: var(--text);
@@ -3013,6 +3038,7 @@ async function sendChat() {
 const SKINS = [
   { id: 'default', name: '深空默认', preview: ['#0f1117', '#4f46e5'] },
   { id: 'neon-pixel', name: '霓虹像素', preview: ['#0a0a0a', '#ff00ff'] },
+  { id: 'pixel-cyber', name: '像素赛博', preview: ['#000d1a', '#ff0066'] },
 ];
 
 function applySkin(id) {
