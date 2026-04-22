@@ -63,15 +63,17 @@ def _build_system_prompt(projects: list[dict]) -> str:
         domain = svc.get("public_domain", "")
         commits = git.get("monthly_commits", 0)
         branch = git.get("branch", "?")
+        path = p.get("path", "")
         lines.append(
             f"- {p['name']}（{p.get('status', 'active')}）："
-            f"{status}{port}，{domain}，{commits}次提交/月，branch={branch}"
+            f"{status}{port}，{domain}，{commits}次提交/月，branch={branch}，路径={path}"
         )
     summary = "\n".join(lines) if lines else "（暂无数据）"
     date = datetime.now().strftime("%Y-%m-%d %H:%M")
     return (
-        f"你是 Mira，一个本地项目管理 agent。今天是 {date}。\n"
-        f"用中文回答。需要查看实际情况时使用 run_shell 工具。\n\n"
+        f"你是 Mira，一个本地项目管理 agent。今天是 {date}。运行在 macOS。\n"
+        f"用中文回答。需要查看实际情况时使用 run_shell 工具。\n"
+        f"如果工具执行后仍然找不到所需信息，或问题超出你的能力范围，直接告诉用户你不知道，不要反复重试。\n\n"
         f"当前项目状态（共 {len(projects)} 个项目）：\n{summary}"
     )
 
@@ -143,7 +145,7 @@ def _resolve_ip(hostname: str) -> str:
         return ""
 
 
-def _http_check(hostname: str, timeout: float = 3.0) -> bool:
+def _http_check(hostname: str, timeout: float = 1.5) -> bool:
     """Return True if https://hostname returns any HTTP response (even 4xx/5xx)."""
     import urllib.request, ssl
     ctx = ssl.create_default_context()
@@ -245,10 +247,23 @@ def get_all_projects(force: bool = False) -> list[dict]:
     with _cache_lock:
         if not force and _cache and (time.time() - _cache_ts) < _CACHE_TTL:
             return _cache
-        # Return stale cache while triggering async refresh
-        if not force and _cache and not _refreshing:
-            threading.Thread(target=_rebuild_and_persist, daemon=True).start()
+        if not force and _cache:
+            # Stale cache: trigger background refresh if not already running,
+            # always return immediately (never block on a running refresh)
+            if not _refreshing:
+                threading.Thread(target=_rebuild_and_persist, daemon=True).start()
             return _cache
+        if not force and _refreshing:
+            # No cache yet but a build is in progress — wait for it instead
+            # of starting a second rebuild. Release cache lock first to avoid
+            # deadlock, then wait for the refresh lock.
+            pass
+    if not force and _refreshing:
+        with _refresh_lock:
+            pass  # Wait for the in-progress build to finish
+        with _cache_lock:
+            if _cache:
+                return _cache
     return _rebuild_and_persist()
 
 
