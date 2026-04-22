@@ -1528,7 +1528,7 @@ body {
 
 <!-- TOP BAR -->
 <div class="topbar">
-  <span class="topbar-title">⚡ Mira</span>
+  <span class="topbar-title">✦ Mira</span>
   <div class="topbar-spacer"></div>
   <button class="refresh-btn" onclick="showImportModal()" style="background:#1e3a28;border-color:#4a7c59;color:#7fc794">+ 导入项目</button>
   <div class="skin-wrap">
@@ -1564,7 +1564,7 @@ body {
     <button class="filter-btn active" id="filter-active" onclick="setFilter('active', this)">Active <span class="filter-count" id="count-active">0</span></button>
     <button class="filter-btn" id="filter-paused" onclick="setFilter('paused', this)">Paused <span class="filter-count" id="count-paused">0</span></button>
     <button class="filter-btn" id="filter-done" onclick="setFilter('done', this)">Done <span class="filter-count" id="count-done">0</span></button>
-    <button class="filter-btn" id="filter-trash" onclick="setFilter('trash', this)">🗑 Trash <span class="filter-count" id="count-trash">0</span></button>
+    <button class="filter-btn" id="filter-trash" onclick="setFilter('trash', this)">Trash <span class="filter-count" id="count-trash">0</span></button>
   </div>
   <div class="project-grid" id="project-grid">
     <div class="loading-state">加载中...</div>
@@ -1615,9 +1615,9 @@ body {
       </div>
     </div>
     <div class="modal-tabs">
-      <button class="modal-tab-btn active" id="mtab-summary" onclick="showModalTab('summary')">📋 概览</button>
-      <button class="modal-tab-btn" id="mtab-overview" onclick="showModalTab('overview')">🌐 全局面貌</button>
-      <button class="modal-tab-btn" id="mtab-design" onclick="showModalTab('design')">📐 文档</button>
+      <button class="modal-tab-btn active" id="mtab-summary" onclick="showModalTab('summary')"> 概览</button>
+      <button class="modal-tab-btn" id="mtab-overview" onclick="showModalTab('overview')"> 全局面貌</button>
+      <button class="modal-tab-btn" id="mtab-design" onclick="showModalTab('design')"> 文档</button>
     </div>
     <div class="modal-body">
       <div class="modal-tab-content active" id="mcontent-summary"></div>
@@ -1868,13 +1868,13 @@ function renderCards() {
 }
 
 const DEPLOY_ICONS = {
-  ec2: '☁️', gcp: '☁️', azure: '☁️', lightsail: '☁️',
-  netlify: '🌐', vercel: '▲', heroku: '🟣', railway: '🚄',
-  render: '🎨', docker: '🐳', vps: '🖥️', codedeploy: '☁️', gae: '☁️',
+  ec2: '△', gcp: '△', azure: '△', lightsail: '△',
+  netlify: '◈', vercel: '▲', heroku: '●', railway: '▶',
+  render: '◈', docker: '⬡', vps: '■', codedeploy: '△', gae: '△',
 };
 function deployLabel(deploy) {
   if (!deploy || deploy.type === 'none' || !deploy.type) return null;
-  const icon = DEPLOY_ICONS[deploy.type] || '☁️';
+  const icon = DEPLOY_ICONS[deploy.type] || '△';
   const label = deploy.type.toUpperCase();
   const title = deploy.host ? ` title="${escHtml(deploy.host)}"` : '';
   return `${icon} <span style="color:var(--accent);cursor:default"${title}>${label}</span>`;
@@ -1894,10 +1894,10 @@ function renderCard(p) {
 
   // ── Domain block (C1 style) ──────────────────────────────
   const deployIcon = deploy.type && deploy.type !== 'none'
-    ? ` · ${DEPLOY_ICONS[deploy.type] || '☁️'} ${deploy.type.toUpperCase()}`
+    ? ` · ${DEPLOY_ICONS[deploy.type] || '△'} ${deploy.type.toUpperCase()}`
     : '';
   const deployMeta = deploy.type && deploy.type !== 'none'
-    ? `<span class="card-domain-meta">${DEPLOY_ICONS[deploy.type] || '☁️'} ${deploy.type.toUpperCase()}</span>`
+    ? `<span class="card-domain-meta">${DEPLOY_ICONS[deploy.type] || '△'} ${deploy.type.toUpperCase()}</span>`
     : '';
   const portBadge = svc.port
     ? `<a class="card-port-badge" href="http://localhost:${svc.port}" target="_blank"
@@ -1997,7 +1997,7 @@ function renderCard(p) {
   const svcPills = deps.map(s => {
     const on = s.is_running;
     return `<span class="card-svc-pill ${on ? 'on' : 'off'}">
-      ${_INFRA_ICONS[s.type] || '⚙️'} ${escHtml(s.name)}
+      ${_INFRA_ICONS[s.type] || '◉'} ${escHtml(s.name)}
       <span class="card-svc-dot" style="background:${on ? 'var(--green)' : 'var(--text-muted)'}"></span>
     </span>`;
   }).join('');
@@ -2079,7 +2079,7 @@ function renderTrending(repos) {
       <div class="trend-card-meta">
         ${lang ? `<span class="trend-card-lang">${dot}${escHtml(lang)}</span>` : ''}
         <span>⭐ ${stars}</span>
-        <span>🍴 ${r.forks_count >= 1000 ? (r.forks_count/1000).toFixed(1)+'k' : r.forks_count}</span>
+        <span>⑂ ${r.forks_count >= 1000 ? (r.forks_count/1000).toFixed(1)+'k' : r.forks_count}</span>
       </div>
     </div>`;
   }).join('');
@@ -2286,7 +2286,7 @@ function renderProjectSummary(p) {
   const svcDomain = svc.public_domain ? `<div class="sm-domain">${escHtml(svc.public_domain)}</div>` : '';
   const svcIp = svc.public_ip ? `<div class="sm-svc-meta">${escHtml(svc.public_ip)}${svcPort}</div>` : (svcPort ? `<div class="sm-svc-meta">${svcPort}</div>` : '');
   const deployLine = deploy.type && deploy.type !== 'none'
-    ? `<div class="sm-svc-meta">${DEPLOY_ICONS[deploy.type] || '☁️'} ${escHtml(deploy.type)}${deploy.host ? ' · ' + escHtml(deploy.host) : ''}</div>`
+    ? `<div class="sm-svc-meta">${DEPLOY_ICONS[deploy.type] || '△'} ${escHtml(deploy.type)}${deploy.host ? ' · ' + escHtml(deploy.host) : ''}</div>`
     : '';
 
   const svcCard = `<div class="sm-card">
@@ -2437,7 +2437,7 @@ function renderProjectOverview(p) {
       html += `<div class="arch-text" id="arch-text-${p.id}">${simpleMarkdown(p.arch_summary)}</div>`;
     } else {
       html += `<div class="arch-text" style="color:#555;display:flex;align-items:center;justify-content:center;">
-        <button onclick="generateSummary('${escHtml(p.id)}')" style="font-size:12px;padding:6px 14px;cursor:pointer;border:1px solid #4a7c59;border-radius:5px;background:#1e3a28;color:#7fc794;">✨ AI 生成总结</button>
+        <button onclick="generateSummary('${escHtml(p.id)}')" style="font-size:12px;padding:6px 14px;cursor:pointer;border:1px solid #4a7c59;border-radius:5px;background:#1e3a28;color:#7fc794;">AI 生成总结</button>
       </div>`;
     }
     if (techStack.length) {
@@ -2562,7 +2562,7 @@ function renderProjectOverview(p) {
     </div>`;
   }
 
-  if (!html) html = '<div class="placeholder"><div class="placeholder-icon">🌐</div><div class="placeholder-title">暂无概览信息</div></div>';
+  if (!html) html = '<div class="placeholder"><div class="placeholder-icon">◎</div><div class="placeholder-title">暂无概览信息</div></div>';
   el.innerHTML = html;
 }
 
@@ -2573,7 +2573,7 @@ function renderDesignDocs(p) {
 
   if (!docs.length) {
     el.innerHTML = `<div class="placeholder">
-      <div class="placeholder-icon">📐</div>
+      <div class="placeholder-icon">◇</div>
       <div class="placeholder-title">暂无设计文档</div>
     </div>`;
     return;
@@ -2596,7 +2596,7 @@ function renderDesignDocs(p) {
       <div class="docs-sidebar-title">文档列表</div>
       ${sidebarItems}
       ${aiCmd ? `<div class="ai-cmd-section">
-        <div class="ai-cmd-label">✦ AI 更新文档</div>
+        <div class="ai-cmd-label">AI 更新文档</div>
         <div class="ai-cmd-box">
           <span class="ai-cmd-text" id="ai-cmd-text">${escHtml(aiCmd)}</span>
           <button class="copy-btn" onclick="copyAiCmd()">复制</button>
@@ -2656,7 +2656,7 @@ function renderPlans(p) {
 
   if (!files.length) {
     el.innerHTML = `<div class="placeholder">
-      <div class="placeholder-icon">✅</div>
+      <div class="placeholder-icon">✓</div>
       <div class="placeholder-title">暂无计划文件</div>
     </div>`;
     return;
@@ -2804,14 +2804,14 @@ function collectAnomalies(projects, wsSnapshot = {}) {
     const isRunning = wsState !== undefined ? wsState.is_running : svc.is_running;
     if (svc.port && !isRunning) {
       result.push({ id: `svc-${p.id}`, projectId: p.id, projectName: p.name,
-        icon: '🔴', title: `${p.name} 服务停止`, desc: `端口 ${svc.port} 无响应` });
+        icon: '●', title: `${p.name} 服务停止`, desc: `端口 ${svc.port} 无响应` });
     }
 
     // 2. Stale design docs
     const staleDocs = docs.filter(d => d.possibly_stale);
     if (staleDocs.length) {
       result.push({ id: `docs-${p.id}`, projectId: p.id, projectName: p.name,
-        icon: '📄', title: `${p.name} 设计文档已过期`, desc: staleDocs.map(d => d.filename).join(', ') });
+        icon: '◻', title: `${p.name} 设计文档已过期`, desc: staleDocs.map(d => d.filename).join(', ') });
     }
   }
   return result;
@@ -2856,9 +2856,9 @@ function connectStatusWs() {
         if (prev === undefined) return;  // newly discovered, skip
         const name = allProjects.find(p => p.id === id)?.name || id;
         if (!svc.is_running && prev === true) {
-          showToast(`⚠️ ${name} 服务已停止 (port ${svc.port || '?'})`);
+          showToast(`⚠ ${name} 服务已停止 (port ${svc.port || '?'})`);
         } else if (svc.is_running && prev === false) {
-          showToast(`✅ ${name} 服务已恢复 (port ${svc.port})`, true);
+          showToast(`✓ ${name} 服务已恢复 (port ${svc.port})`, true);
         }
       });
     }
@@ -2880,8 +2880,8 @@ function connectStatusWs() {
 
 // ─── Infra Services ───────────────────────────────────────────────────────────
 const _INFRA_ICONS = {
-  llm: '🤖', voice: '🎙️', http: '🌐', wiki: '📖',
-  storage: '🗄️', db: '🗃️', other: '⚙️',
+  llm: 'AI', voice: '♪', http: '◎', wiki: '≡',
+  storage: '▦', db: '▤', other: '◉',
 };
 
 async function loadInfraServices() {
