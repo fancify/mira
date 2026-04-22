@@ -1297,7 +1297,7 @@ body {
 @media (max-width: 640px) { .sm-cols { grid-template-columns: 1fr; } .sm-kpi-row { flex-wrap: wrap; } }
 /* ── Chat Agent Panel ───────────────────────────── */
 .chat-fab {
-  position: fixed; bottom: 24px; right: 24px; z-index: 200;
+  position: fixed; bottom: 84px; right: 24px; z-index: 200;
   width: 52px; height: 52px; border-radius: 50%;
   background: var(--accent); border: none; cursor: pointer;
   font-size: 22px; color: #fff; box-shadow: 0 4px 16px rgba(79,70,229,.45);
@@ -1305,7 +1305,7 @@ body {
 }
 .chat-fab:hover { transform: scale(1.08); box-shadow: 0 6px 24px rgba(79,70,229,.7); }
 .chat-panel {
-  position: fixed; right: 0; top: 0; bottom: 0; width: 380px; z-index: 199;
+  position: fixed; right: 0; top: 0; bottom: 0; width: 380px; z-index: 201;
   background: var(--card); border-left: 1px solid var(--border);
   display: flex; flex-direction: column;
   transform: translateX(100%); transition: transform .25s cubic-bezier(.4,0,.2,1);
@@ -1369,6 +1369,7 @@ body {
 }
 .chat-send:hover { background: var(--accent-dim); }
 .chat-send:disabled { opacity: .45; cursor: default; }
+@media (max-width: 480px) { .chat-panel { width: 100vw; } }
 </style>
 </head>
 <body>
@@ -2789,19 +2790,19 @@ loadInfraServices();
 connectStatusWs();
 </script>
 <!-- ── Chat Agent ──────────────────────────────── -->
-<button class="chat-fab" id="chat-fab" onclick="toggleChat()" title="与 Mira 对话">💬</button>
+<button class="chat-fab" id="chat-fab" onclick="toggleChat()" aria-label="打开 Mira 对话">💬</button>
 
-<div class="chat-panel" id="chat-panel">
+<div class="chat-panel" id="chat-panel" role="dialog" aria-label="Mira 对话" aria-modal="true">
   <div class="chat-header">
     <span class="chat-header-title">✦ Mira</span>
-    <button class="chat-close" onclick="toggleChat()">×</button>
+    <button class="chat-close" onclick="toggleChat()" aria-label="关闭">×</button>
   </div>
   <div class="chat-messages" id="chat-messages"></div>
   <div class="chat-input-row">
     <textarea class="chat-input" id="chat-input"
       placeholder="问 Mira 任何关于项目的事..." rows="1"
       onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat();}"></textarea>
-    <button class="chat-send" id="chat-send" onclick="sendChat()">↑</button>
+    <button class="chat-send" id="chat-send" onclick="sendChat()" aria-label="发送">↑</button>
   </div>
 </div>
 </body>
