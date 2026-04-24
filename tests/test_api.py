@@ -99,7 +99,7 @@ def test_terminals_register_and_list():
                            json={'target': 'work:0.0', 'label': 'test'},
                            headers={'X-Admin-Token': 'x'})
         assert resp.status_code == 200
-        mock_reg.assert_called_once_with('work:0.0', 'test')
+        mock_reg.assert_called_once_with('work:0.0', 'test', project_id=None)
 
 
 def test_terminals_output_success():

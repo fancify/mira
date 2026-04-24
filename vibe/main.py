@@ -911,10 +911,11 @@ def terminals_register(request: Request, body: dict):
         raise HTTPException(status_code=401, detail="需要管理员权限")
     target = (body.get("target") or "").strip()
     label = (body.get("label") or target).strip()
+    project_id = (body.get("project_id") or "").strip() or None
     if not target:
         raise HTTPException(status_code=400, detail="target required")
     from vibe.terminal_monitor import register_pane
-    register_pane(target, label)
+    register_pane(target, label, project_id=project_id)
     return {"ok": True}
 
 

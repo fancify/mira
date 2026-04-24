@@ -51,12 +51,22 @@ def capture_pane(target: str, lines: int = 200) -> str:
 
 
 def send_keys(target: str, keys: str) -> None:
-    """Send keystrokes to a tmux pane."""
+    """Send keystrokes to a tmux pane.
+
+    Splits on \\n so newlines are sent as the tmux 'Enter' key name,
+    which tmux recognises correctly unlike a literal newline character.
+    """
     if not _TARGET_RE.match(target):
         raise RuntimeError(f"Invalid tmux target format: {target!r}")
-    proc = subprocess.run(
-        ["tmux", "send-keys", "-t", target, keys],
-        capture_output=True, text=True,
-    )
-    if proc.returncode != 0:
-        raise RuntimeError(f"send-keys failed for target '{target}': {proc.stderr.strip()}")
+
+    def _run(cmd: list[str]) -> None:
+        proc = subprocess.run(cmd, capture_output=True, text=True)
+        if proc.returncode != 0:
+            raise RuntimeError(f"send-keys failed for target '{target}': {proc.stderr.strip()}")
+
+    parts = keys.split("\n")
+    for i, part in enumerate(parts):
+        if part:
+            _run(["tmux", "send-keys", "-t", target, part])
+        if i < len(parts) - 1:
+            _run(["tmux", "send-keys", "-t", target, "Enter"])

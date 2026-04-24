@@ -531,6 +531,28 @@ def render_detail_page(project_id: str, project_name: str) -> str:
 
     /* show mobile docs components */
     .docs-mobile-list {{ display: flex; }}
+
+    /* terminal tab — stack vertically on mobile */
+    .term-layout {{ flex-direction: column; height: calc(100vh - 90px); }}
+    .term-sidebar {{
+      width: 100%; border-right: none; border-bottom: 1px solid var(--border);
+      flex-direction: row; flex-shrink: 0; overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }}
+    .term-sidebar-header {{ display: none; }}
+    .term-sidebar-footer {{ display: none; }}
+    #term-pane-list {{ display: flex; flex-direction: row; flex: 1; }}
+    .term-pane-row {{
+      flex-direction: column; align-items: flex-start; gap: 2px;
+      padding: 8px 14px; white-space: nowrap; flex-shrink: 0;
+      border-left: none; border-bottom: 2px solid transparent;
+    }}
+    .term-pane-row.active {{ border-bottom-color: var(--accent); border-left-color: transparent; }}
+    .term-output {{ font-size: 11px; }}
+    .term-qbtn {{ padding: 4px 10px; font-size: 11px; }}
+    .term-send-btn {{ padding: 8px 18px; font-size: 13px; }}
+    .term-input {{ font-size: 13px; padding: 8px 10px; }}
+    .term-inputbar {{ padding: 10px 12px; }}
   }}
 
 </style>
@@ -1297,7 +1319,6 @@ document.getElementById('btn-term-enter').addEventListener('click', () => _termS
     inp.value = '';
   }};
   document.getElementById('term-send-btn').addEventListener('click', sendFn);
-  inp.addEventListener('keydown', e => {{ if (e.key === 'Enter') sendFn(); }});
 }})();
 
 async function reload() {{

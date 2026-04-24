@@ -26,7 +26,7 @@ WAIT_PATTERNS = [
 _WAIT_RE = re.compile("|".join(WAIT_PATTERNS), re.IGNORECASE)
 
 
-def register_pane(target: str, label: str) -> None:
+def register_pane(target: str, label: str, project_id: str | None = None) -> None:
     with _monitor_lock:
         if target not in _monitored:
             _monitored[target] = {
@@ -35,7 +35,7 @@ def register_pane(target: str, label: str) -> None:
                 "command": "",
                 "cwd": "",
                 "auto": False,
-                "project_id": None,
+                "project_id": project_id,
                 "last_output": "",
                 "waiting": False,
                 "registered_at": time.time(),

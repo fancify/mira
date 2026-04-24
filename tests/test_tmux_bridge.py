@@ -48,10 +48,10 @@ def test_send_keys_calls_tmux():
     with patch('subprocess.run', return_value=_make_proc()) as mock_run:
         from vibe.tmux_bridge import send_keys
         send_keys('work:0.0', 'y\n')
-    args = mock_run.call_args[0][0]
-    assert 'send-keys' in args
-    assert 'work:0.0' in args
-    assert 'y\n' in args
+    # 'y\n' splits into two calls: text 'y' then key 'Enter'
+    calls = [c[0][0] for c in mock_run.call_args_list]
+    assert any('y' in c for c in calls)
+    assert any('Enter' in c for c in calls)
 
 
 def test_send_keys_raises_on_failure():
