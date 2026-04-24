@@ -141,6 +141,10 @@ function _authHeaders() {
   return _adminToken ? { 'Authorization': 'Bearer ' + _adminToken } : {};
 }
 
+function _esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 document.getElementById('btn-30d').addEventListener('click', function() { setRange('30d'); });
 document.getElementById('btn-12w').addEventListener('click', function() { setRange('12w'); });
 
@@ -151,16 +155,22 @@ function setRange(r) {
   loadStats();
 }
 
-async function loadStats() {
+async function loadStats(retries) {
+  if (retries === undefined) retries = 0;
   try {
     const res = await fetch('/api/stats?range=' + _currentRange,
       { headers: _authHeaders() });
     if (res.status === 401) {
+      if (retries >= 3) {
+        document.getElementById('summary-row').innerHTML =
+          '<div class="empty-state">认证失败，请刷新页面重试</div>';
+        return;
+      }
       const tok = prompt('请输入管理员密码：');
       if (!tok) return;
       _adminToken = tok;
       localStorage.setItem('mira-admin-token', tok);
-      return loadStats();
+      return loadStats(retries + 1);
     }
     if (!res.ok) {
       document.getElementById('summary-row').innerHTML =
@@ -169,11 +179,13 @@ async function loadStats() {
     }
     const data = await res.json();
     renderSummary(data.totals);
-    renderBarChart('chart-hours', data.days, function(d) { return d.active_hours; },
-                   function(v) { return v.toFixed(1) + 'h'; }, '#5cd08a');
-    renderBarChart('chart-cost',  data.days,
-                   function(d) { return d.input_tokens * _PRICE_IN + d.output_tokens * _PRICE_OUT; },
-                   function(v) { return '$' + v.toFixed(2); }, '#4e9eff');
+    requestAnimationFrame(function() {
+      renderBarChart('chart-hours', data.days, function(d) { return d.active_hours; },
+                     function(v) { return v.toFixed(1) + 'h'; }, '#5cd08a');
+      renderBarChart('chart-cost',  data.days,
+                     function(d) { return d.input_tokens * _PRICE_IN + d.output_tokens * _PRICE_OUT; },
+                     function(v) { return '$' + v.toFixed(2); }, '#4e9eff');
+    });
     renderRanking(data.projects);
   } catch(e) {
     console.warn('stats load error:', e);
@@ -233,7 +245,7 @@ function renderRanking(projects) {
   var maxH = Math.max.apply(null, projects.map(function(p) { return p.total_hours || 0; }).concat([0.001]));
   el.innerHTML = projects.map(function(p) {
     var pct = ((p.total_hours || 0) / maxH * 100).toFixed(1);
-    var name = p.project_name || p.project_id;
+    var name = _esc(p.project_name || p.project_id);
     return '<div class="rank-row">' +
       '<div class="rank-name" title="' + name + '">' + name + '</div>' +
       '<div class="rank-bar-bg"><div class="rank-bar" style="width:' + pct + '%"></div></div>' +
