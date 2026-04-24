@@ -1,5 +1,4 @@
 import subprocess
-from typing import Optional
 
 
 def list_panes() -> list[dict]:
@@ -11,6 +10,10 @@ def list_panes() -> list[dict]:
             capture_output=True, text=True,
         )
     except FileNotFoundError:
+        return []
+
+    if proc.returncode != 0:
+        # tmux server not running or no sessions; treat as no panes
         return []
 
     panes = []
