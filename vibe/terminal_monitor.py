@@ -107,9 +107,9 @@ def _poll_once() -> None:
                     "waiting": False,
                     "registered_at": time.time(),
                 }
-        # Evict auto-discovered panes that are no longer in list_panes
+        # Evict any pane whose tmux target no longer exists
         current_targets = set(p["target"] for p in all_panes)
-        stale = [t for t, v in _monitored.items() if v["auto"] and t not in current_targets]
+        stale = [t for t in _monitored if t not in current_targets]
         for t in stale:
             del _monitored[t]
         targets = list(_monitored.keys())
@@ -119,8 +119,7 @@ def _poll_once() -> None:
             output = capture_pane(target, lines=20)
         except RuntimeError:
             with _monitor_lock:
-                if target in _monitored and _monitored[target].get("auto"):
-                    del _monitored[target]
+                _monitored.pop(target, None)
             continue
 
         last_10_lines = "\n".join(output.splitlines()[-10:])

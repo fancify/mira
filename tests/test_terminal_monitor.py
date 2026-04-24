@@ -115,9 +115,8 @@ def test_alert_fires_only_on_rising_edge():
     assert len(m._terminal_alerts) == 1
 
 
-def test_manual_pane_survives_capture_failure():
-    """Manually registered panes (auto=False) should not be removed on capture failure."""
-    import vibe.terminal_monitor as m
+def test_dead_pane_removed_on_poll():
+    """Panes (auto or manual) are removed when their tmux target disappears."""
     from vibe.terminal_monitor import register_pane, get_panes
     register_pane('work:0.0', label='manual')
 
@@ -127,5 +126,4 @@ def test_manual_pane_survives_capture_failure():
         _poll_once()
 
     panes = get_panes()
-    assert len(panes) == 1
-    assert panes[0]['target'] == 'work:0.0'
+    assert len(panes) == 0
