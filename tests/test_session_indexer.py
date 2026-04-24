@@ -164,3 +164,53 @@ def test_index_file_set_last_line_failure_is_logged(tmp_path, caplog):
                 index_file(jsonl, 'sess2', 'proj2', 'My Project')
 
         assert any('Failed to advance last_line' in r.message for r in caplog.records)
+
+
+def test_index_file_writes_daily_stats(tmp_path):
+    """index_file should write daily_stats after indexing messages."""
+    import json
+    from unittest.mock import patch
+    db_file = tmp_path / 'history.db'
+    jsonl = tmp_path / 'sess_stats.jsonl'
+
+    lines = [
+        {"type": "user",
+         "message": {"role": "user", "content": "帮我写代码"},
+         "timestamp": "2026-04-20T10:00:00.000Z"},
+        {"type": "assistant",
+         "message": {
+             "role": "assistant",
+             "content": [{"type": "text", "text": "好的"}],
+             "usage": {"input_tokens": 100, "output_tokens": 50,
+                       "cache_creation_input_tokens": 0, "cache_read_input_tokens": 0}
+         },
+         "timestamp": "2026-04-20T10:05:00.000Z"},
+    ]
+    jsonl.write_text('\n'.join(json.dumps(l) for l in lines) + '\n', encoding='utf-8')
+
+    with patch('vibe.history_db.DB_PATH', db_file):
+        from vibe.history_db import init_db, get_stats
+        from vibe.session_indexer import index_file
+        init_db()
+        index_file(jsonl, 'sess_stats', 'proj1', 'My Project')
+        result = get_stats(range_days=30)
+        assert result['totals']['sessions'] == 1
+        assert result['totals']['input_tokens'] == 100
+        assert result['totals']['output_tokens'] == 50
+        assert result['totals']['active_hours'] > 0  # 5min gap counted
+
+
+def test_compute_session_stats_returns_none_on_missing_file(tmp_path):
+    from vibe.session_indexer import _compute_session_stats
+    result = _compute_session_stats(tmp_path / 'nonexistent.jsonl')
+    assert result is None
+
+
+def test_compute_session_stats_no_timestamps(tmp_path):
+    """A file with no timestamps should return None (can't determine date)."""
+    import json
+    from vibe.session_indexer import _compute_session_stats
+    jsonl = tmp_path / 'no_ts.jsonl'
+    jsonl.write_text(json.dumps({"type": "user", "message": {"role": "user", "content": "hi"}}) + '\n')
+    result = _compute_session_stats(jsonl)
+    assert result is None

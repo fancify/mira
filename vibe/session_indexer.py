@@ -62,6 +62,79 @@ def _parse_line(line: str):
     return role, text, ts_ms
 
 
+def _compute_session_stats(path: "Path") -> "dict | None":
+    """Full-file scan to compute token usage, active hours, and date.
+
+    Returns None if the file is unreadable or has no timestamps.
+    """
+    GAP_THRESHOLD = 30 * 60  # seconds
+    timestamps: list[datetime] = []
+    input_tokens = 0
+    output_tokens = 0
+    message_count = 0
+
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as f:
+            for line in f:
+                if not line.strip():
+                    continue
+                try:
+                    obj = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+
+                # Collect timestamps for active-hours calculation
+                ts_str = obj.get("timestamp", "")
+                if ts_str:
+                    try:
+                        ts = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+                        timestamps.append(ts)
+                    except Exception:
+                        pass
+
+                # Count text-bearing messages
+                if obj.get("type") in ("user", "assistant"):
+                    msg = obj.get("message", {})
+                    content = msg.get("content", "")
+                    has_text = False
+                    if isinstance(content, str) and content.strip():
+                        has_text = True
+                    elif isinstance(content, list):
+                        for block in content:
+                            if isinstance(block, dict) and block.get("type") == "text" and block.get("text", "").strip():
+                                has_text = True
+                                break
+                    if has_text:
+                        message_count += 1
+
+                # Token usage from assistant messages
+                usage = (obj.get("message") or {}).get("usage") or {}
+                if usage.get("output_tokens"):
+                    input_tokens  += usage.get("input_tokens", 0)
+                    output_tokens += usage.get("output_tokens", 0)
+    except OSError:
+        return None
+
+    if not timestamps:
+        return None
+
+    timestamps.sort()
+    active_secs = 0.0
+    for i in range(1, len(timestamps)):
+        gap = (timestamps[i] - timestamps[i - 1]).total_seconds()
+        if gap < GAP_THRESHOLD:
+            active_secs += gap
+
+    date_str = timestamps[-1].astimezone().strftime("%Y-%m-%d")
+    return {
+        "date":          date_str,
+        "messages":      message_count,
+        "input_tokens":  input_tokens,
+        "output_tokens": output_tokens,
+        "active_hours":  round(active_secs / 3600, 4),
+    }
+
+
 def index_file(path: Path, session_id: str, project_id: str, project_name: str) -> None:
     """Incrementally index a JSONL file from its last_line pointer."""
     from vibe.history_db import upsert_session, get_last_line, insert_message, set_last_line
@@ -96,6 +169,23 @@ def index_file(path: Path, session_id: str, project_id: str, project_name: str) 
         set_last_line(session_id, last + processed)
     except ValueError as e:
         logger.error('Failed to advance last_line for %s: %s', session_id, e)
+
+    # Update daily stats for this session
+    try:
+        stats = _compute_session_stats(path)
+        if stats:
+            from vibe.history_db import upsert_daily_stats
+            upsert_daily_stats(
+                session_id=session_id,
+                project_id=project_id,
+                date=stats["date"],
+                messages=stats["messages"],
+                input_tokens=stats["input_tokens"],
+                output_tokens=stats["output_tokens"],
+                active_hours=stats["active_hours"],
+            )
+    except Exception as e:
+        logger.warning("upsert_daily_stats failed for %s: %s", path, e)
 
 
 def _find_jsonl_for_project(project_path: str):
