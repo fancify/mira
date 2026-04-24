@@ -49,7 +49,7 @@ def unregister_pane(target: str) -> None:
 
 def get_panes() -> list[dict]:
     with _monitor_lock:
-        return list(_monitored.values())
+        return [dict(v) for v in _monitored.values()]
 
 
 def get_terminal_alerts() -> list[dict]:
@@ -87,16 +87,22 @@ def _poll_once() -> None:
         logger.warning("list_panes failed: %s", e)
         all_panes = []
 
+    # Auto-discover Claude panes — compute project_id OUTSIDE the lock (I/O)
+    new_entries = {}
+    for pane in all_panes:
+        if pane["command"] in _AUTO_COMMANDS:
+            new_entries[pane["target"]] = (pane, _match_project(pane["cwd"]))
+
     with _monitor_lock:
-        for pane in all_panes:
-            if pane["command"] in _AUTO_COMMANDS and pane["target"] not in _monitored:
-                _monitored[pane["target"]] = {
+        for target, (pane, project_id) in new_entries.items():
+            if target not in _monitored:
+                _monitored[target] = {
                     "target": pane["target"],
                     "label": f"{pane['command']}/{Path(pane['cwd']).name}",
                     "command": pane["command"],
                     "cwd": pane["cwd"],
                     "auto": True,
-                    "project_id": _match_project(pane["cwd"]),
+                    "project_id": project_id,
                     "last_output": "",
                     "waiting": False,
                     "registered_at": time.time(),

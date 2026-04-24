@@ -37,7 +37,8 @@ def test_auto_discover_adds_claude_panes():
         {'target': 'work:0.1', 'command': 'node', 'cwd': '/Users/chao/projects/foo', 'session': 'work', 'window': 0, 'pane': 1},
     ]
     with patch('vibe.tmux_bridge.list_panes', return_value=fake_panes), \
-         patch('vibe.tmux_bridge.capture_pane', return_value='some output'):
+         patch('vibe.tmux_bridge.capture_pane', return_value='some output'), \
+         patch('vibe.terminal_monitor._match_project', return_value=None):
         from vibe.terminal_monitor import _poll_once
         _poll_once()
 
@@ -91,3 +92,37 @@ def test_waiting_cleared_when_prompt_gone():
         _poll_once()
 
     assert m._monitored['work:0.0']['waiting'] is False
+
+
+def test_alert_fires_only_on_rising_edge():
+    """Alert should only be created when waiting transitions False→True, not on every poll."""
+    import vibe.terminal_monitor as m
+    m._monitored['work:0.0'] = {
+        'target': 'work:0.0', 'label': 'claude/mira', 'command': 'ccc',
+        'cwd': '/tmp', 'auto': True, 'project_id': None,
+        'last_output': '', 'waiting': False, 'registered_at': time.time(),
+    }
+    output_with_prompt = "Do you want to proceed? (y/n)"
+    with patch('vibe.tmux_bridge.list_panes', return_value=[]), \
+         patch('vibe.tmux_bridge.capture_pane', return_value=output_with_prompt):
+        from vibe.terminal_monitor import _poll_once
+        _poll_once()  # rising edge: False → True → 1 alert
+        _poll_once()  # stays True → no new alert
+
+    assert len(m._terminal_alerts) == 1
+
+
+def test_manual_pane_survives_capture_failure():
+    """Manually registered panes (auto=False) should not be removed on capture failure."""
+    import vibe.terminal_monitor as m
+    from vibe.terminal_monitor import register_pane, get_panes
+    register_pane('work:0.0', label='manual')
+
+    with patch('vibe.tmux_bridge.list_panes', return_value=[]), \
+         patch('vibe.tmux_bridge.capture_pane', side_effect=RuntimeError('pane not found')):
+        from vibe.terminal_monitor import _poll_once
+        _poll_once()
+
+    panes = get_panes()
+    assert len(panes) == 1
+    assert panes[0]['target'] == 'work:0.0'
