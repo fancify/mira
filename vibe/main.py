@@ -1148,7 +1148,7 @@ def term_cmd(
     示例：vibe term kohl
           vibe term kohl --cmd "npm run dev"
     """
-    import hashlib, subprocess, time, urllib.request, urllib.error, json as _json
+    import hashlib, os, subprocess, time, urllib.request, urllib.error, json as _json
 
     from vibe.config import load_global_config
     from vibe.scanner import discover_projects
@@ -1176,11 +1176,10 @@ def term_cmd(
     if existing:
         typer.echo(f"tmux session '{session}' 已存在，复用")
     else:
+        # Create detached, send command, then we'll attach below
         subprocess.run(["tmux", "new-session", "-d", "-s", session, "-c", project_path], check=True)
-        typer.echo(f"已创建 tmux session '{session}'")
         subprocess.run(["tmux", "send-keys", "-t", f"{session}:0.0", cmd, "Enter"])
-        typer.echo(f"已启动：{cmd}")
-        time.sleep(1)
+        time.sleep(0.5)
 
     # Detect pane target
     target = f"{session}:0.0"
@@ -1204,7 +1203,8 @@ def term_cmd(
         typer.echo(f"无法连接到 mira ({host})：{e}", err=True)
         raise typer.Exit(1)
 
-    typer.echo(f"\n✓ 完成。在 mira 的 {project} 项目详情 → 终端 tab 查看。")
+    # Attach to the session — replaces current process so Termius shows the terminal
+    os.execvp("tmux", ["tmux", "attach", "-t", session])
 
 
 @cli.command("serve")
