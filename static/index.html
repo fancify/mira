@@ -3515,6 +3515,56 @@ function selectDevPane(target) {
   _startDevPoll();
 }
 
+function _startDevPoll() {
+  if (_devPollTimer) return;
+  _devPollTimer = setInterval(_pollDevOutput, 500);
+  _pollDevOutput(); // immediate first fetch
+}
+
+function _stopDevPoll() {
+  if (_devPollTimer) { clearInterval(_devPollTimer); _devPollTimer = null; }
+}
+
+async function _pollDevOutput() {
+  if (!_devActivePane) return;
+  try {
+    const res = await fetch(
+      `/api/terminals/${encodeURIComponent(_devActivePane)}/output?lines=200`,
+      { headers: _authHeaders() }
+    );
+    if (!res.ok) return;
+    const data = await res.json();
+    const outputEl = document.getElementById('dev-terminal-output');
+    if (!outputEl) return;
+
+    outputEl.textContent = data.output || '';
+
+    // Auto-scroll if user hasn't scrolled up
+    if (_devAutoScroll) {
+      outputEl.scrollTop = outputEl.scrollHeight;
+    }
+  } catch(e) { /* silently ignore poll errors */ }
+}
+
+async function sendDevKeys() {
+  const input = document.getElementById('dev-input');
+  const keys = input ? input.value : '';
+  if (!keys || !_devActivePane) return;
+  try {
+    const res = await fetch(
+      `/api/terminals/${encodeURIComponent(_devActivePane)}/send`,
+      { method: 'POST',
+        headers: _authHeaders({'Content-Type': 'application/json'}),
+        body: JSON.stringify({ keys: keys + '\n' }) }
+    );
+    if (!res.ok) { showToast('发送失败：HTTP ' + res.status); return; }
+    if (input) input.value = '';
+    _devAutoScroll = true;
+  } catch(e) {
+    showToast('发送失败：' + e.message);
+  }
+}
+
 function toggleTerminalsSection() {
   terminalsOpen = !terminalsOpen;
   document.getElementById('terminals-body').style.display = terminalsOpen ? '' : 'none';
@@ -4094,6 +4144,15 @@ document.addEventListener('click', e => {
 });
 
 document.addEventListener('DOMContentLoaded', () => {
+  // Dev terminal auto-scroll detection
+  const devOut = document.getElementById('dev-terminal-output');
+  if (devOut) {
+    devOut.addEventListener('scroll', () => {
+      const atBottom = devOut.scrollHeight - devOut.scrollTop - devOut.clientHeight < 40;
+      _devAutoScroll = atBottom;
+    });
+  }
+
   const input = document.getElementById('search-input');
   if (!input) return;
   input.addEventListener('input', () => {
