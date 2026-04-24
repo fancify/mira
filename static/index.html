@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mira</title>
+<title>Mira v2</title>
 <style>
 @font-face {
   font-family: 'Ark Pixel Font';
@@ -130,12 +130,13 @@
 
 /* ── pixel-cyber: sharp edges + mosaic grid ────────────────────────────── */
 /* Fix hardcoded dark colors that don't use CSS variables */
-[data-theme="pixel-cyber"] .card-spark15-bar { background: transparent !important; }
+[data-theme="pixel-cyber"] .card-spark15-bar { border-radius: 0 !important; }
 [data-theme="pixel-cyber"] .card-spark15-bar.on { background: var(--accent-light) !important; }
 [data-theme="pixel-cyber"] .card-spark15-bar.hi { background: var(--purple) !important; }
 [data-theme="pixel-cyber"] .sm-sbar { background: transparent !important; }
 [data-theme="pixel-cyber"] .sm-sbar.on { background: var(--accent-light) !important; }
 [data-theme="pixel-cyber"] .sm-sbar.hi { background: var(--purple) !important; }
+[data-theme="pixel-cyber"] .activity-bar { border-radius: 0 !important; }
 [data-theme="pixel-cyber"] .card-git-row,
 [data-theme="pixel-cyber"] .ov-section,
 [data-theme="pixel-cyber"] .ov-kv-row,
@@ -156,9 +157,6 @@
 }
 [data-theme="pixel-cyber"] .card {
   box-shadow: 2px 2px 0 var(--border), inset 0 0 0 1px rgba(0,212,255,0.08);
-}
-[data-theme="pixel-cyber"] .skin-btn {
-  box-shadow: 2px 2px 0 var(--accent);
 }
 
 body {
@@ -181,13 +179,28 @@ body {
   border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
-  z-index: 100;
+  z-index: 300;
 }
 .topbar-title {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--text);
   margin-right: 8px;
+  display: inline-flex; align-items: baseline; gap: 0;
+  font-family: var(--sans); letter-spacing: 3px; line-height: 1;
+  text-transform: uppercase;
+}
+.topbar-title .logo-m {
+  font-size: 28px; font-weight: 900; color: var(--accent);
+  text-shadow: 0 0 10px var(--accent), 0 0 22px rgba(var(--accent-rgb), .35);
+}
+.topbar-title .logo-ira {
+  font-size: 22px; font-weight: 700; color: var(--text); opacity: .75;
+}
+.topbar-title .logo-cursor {
+  font-size: 24px; font-weight: 400; color: var(--accent); opacity: .9;
+  animation: logo-blink 1.1s step-end infinite;
+}
+@keyframes logo-blink {
+  0%, 100% { opacity: .9; }
+  50% { opacity: 0; }
 }
 .tab-btn {
   background: none;
@@ -289,6 +302,15 @@ body {
   padding: 13px 16px 11px;
   border-bottom: 1px solid rgba(var(--border-subtle-rgb),0.6);
 }
+.card-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: 6px 16px 0;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .card-name {
   font-size: 13px;
   font-weight: 700;
@@ -376,13 +398,27 @@ body {
   flex-shrink: 0;
 }
 .svc-running { background: var(--green); box-shadow: 0 0 6px var(--green); animation: pulse-green 2s infinite; }
-.svc-stopped { background: var(--red); }
+.svc-stopped { background: var(--red); box-shadow: 0 0 6px var(--red); animation: pulse-red 1.5s infinite; }
 .svc-unknown { background: var(--text-muted); }
 @keyframes pulse-green {
   0%, 100% { box-shadow: 0 0 4px var(--green); }
   50% { box-shadow: 0 0 10px var(--green); }
 }
+@keyframes pulse-red {
+  0%, 100% { box-shadow: 0 0 4px var(--red); opacity: 1; }
+  50% { box-shadow: 0 0 10px var(--red); opacity: .6; }
+}
+@keyframes border-pulse-red {
+  0%, 100% { border-color: rgba(239,68,68,.5); box-shadow: 0 0 0 1px rgba(239,68,68,.1); }
+  50%       { border-color: rgba(239,68,68,.9); box-shadow: 0 0 8px rgba(239,68,68,.35); }
+}
 .card-alert { border-color: var(--red) !important; box-shadow: 0 0 12px rgba(224,108,117,0.3); }
+.project-card.card-down {
+  animation: border-pulse-red 1.8s ease-in-out infinite;
+}
+.project-card.card-down:hover {
+  animation: border-pulse-red 1.8s ease-in-out infinite;
+}
 
 /* ── C1 card layout ─────────────────────────────────────── */
 .card-domain {
@@ -401,9 +437,9 @@ body {
 }
 .card-domain-url:hover { text-decoration: underline; }
 .card-domain-nourl { font-size: 12px; color: var(--text-deep); flex: 1; font-family: var(--font-mono); }
-.card-domain-meta { font-size: 10px; color: #4a5060; white-space: nowrap; }
+.card-domain-meta { font-size: 10px; color: var(--text-muted); white-space: nowrap; }
 .card-port-badge {
-  font-size: 11px; color: #64748b; font-family: var(--font-mono);
+  font-size: 11px; color: var(--text-muted); font-family: var(--font-mono);
   background: rgba(100,116,139,.12); border: 1px solid rgba(100,116,139,.2);
   border-radius: 4px; padding: 1px 6px; white-space: nowrap; flex-shrink: 0;
   text-decoration: none; transition: all .15s;
@@ -422,7 +458,7 @@ body {
 .card-sv { font-size: 13px; font-weight: 700; color: var(--text); }
 .card-sl { font-size: 8px; color: var(--text-muted); letter-spacing: 1px; text-transform: uppercase; margin-top: 2px; }
 .card-sv-purple { color: var(--accent-light); }
-.card-sl-purple { color: #3d3060; }
+.card-sl-purple { color: var(--text-deep); }
 
 .card-git-spark {
   display: flex; align-items: center; gap: 8px;
@@ -430,7 +466,7 @@ body {
 }
 .card-git-spark code {
   font-size: 10px; background: rgba(255,255,255,.04);
-  padding: 1px 5px; border-radius: 3px; color: #4a5060;
+  padding: 1px 5px; border-radius: 3px; color: var(--text-muted);
   font-family: var(--font-mono);
 }
 .card-spark {
@@ -451,11 +487,13 @@ body {
 .ccm-lbl { flex: 1; font-size: 8px; color: var(--text-muted); letter-spacing: 1px; text-transform: uppercase; }
 .ccm-val { flex: 1; font-size: 11px; font-weight: 600; color: var(--text-sec); }
 .card-spark15 {
-  display: flex; gap: 2px; align-items: flex-end; height: 44px; flex-shrink: 0;
+  display: flex; gap: 3px; align-items: flex-end; height: 48px; flex-shrink: 0; width: 120px;
 }
-.card-spark15-bar { width: 7px; border-radius: 1px 1px 0 0; background: #1e2538; min-height: 2px; }
-.card-spark15-bar.on { background: var(--accent-light); }
-.card-spark15-bar.hi { background: #a78bfa; }
+.card-spark15-bar { flex: 1; border-radius: 2px 2px 0 0; background: var(--border); opacity: 1; min-height: 2px; transition: opacity .15s; }
+.card-spark15-bar.on { background: var(--accent-light); opacity: .7; }
+.card-spark15-bar.on:hover { opacity: 1; }
+.card-spark15-bar.hi { background: var(--purple); opacity: .8; }
+.card-spark15-bar.hi:hover { opacity: 1; }
 
 .card-footer-new {
   padding: 9px 14px 13px; margin-top: 8px;
@@ -471,20 +509,20 @@ body {
   font-size: 10px; padding: 2px 7px; border-radius: 4px;
 }
 .card-svc-pill.on {
-  background: rgba(34,197,94,.08); border: 1px solid rgba(34,197,94,.15); color: #4a6a5a;
+  background: rgba(34,197,94,.08); border: 1px solid rgba(34,197,94,.15); color: var(--green-dim);
 }
 .card-svc-pill.off {
-  background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.07); color: #334155;
+  background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.07); color: var(--text-deep);
 }
 .card-svc-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
 .card-tag {
   font-size: 10px; padding: 1px 6px; border-radius: 3px;
-  background: rgba(255,255,255,.05); color: #64748b;
+  background: rgba(255,255,255,.05); color: var(--text-muted);
   white-space: nowrap;
 }
 .card-tag-more {
   font-size: 10px; padding: 1px 7px; border-radius: 3px;
-  background: rgba(255,255,255,.05); color: #94a3b8;
+  background: rgba(255,255,255,.05); color: var(--text-sec);
   white-space: nowrap; cursor: default; position: relative;
 }
 .card-tag-more:hover .tag-more-tooltip {
@@ -496,7 +534,7 @@ body {
   bottom: calc(100% + 6px);
   left: 50%;
   transform: translateX(-50%);
-  background: #1e2535;
+  background: var(--card);
   border: 1px solid rgba(255,255,255,.12);
   border-radius: 6px;
   padding: 6px 8px;
@@ -536,7 +574,7 @@ body {
 .tag {
   background: rgba(var(--accent-rgb),0.1);
   border: 1px solid rgba(var(--accent-rgb),0.3);
-  color: #a5b4fc;
+  color: var(--accent-light);
   font-size: 10px;
   padding: 1px 6px;
   border-radius: 4px;
@@ -575,7 +613,7 @@ body {
 .kpi-accent { color: var(--accent); }
 .kpi-yellow { color: var(--yellow); }
 .kpi-purple { color: var(--purple); }
-.kpi-muted { color: #94a3b8; }
+.kpi-muted { color: var(--text-sec); }
 
 .summary-table {
   width: 100%;
@@ -608,10 +646,10 @@ body {
 .modal-overlay {
   display: none;
   position: fixed;
-  inset: 0;
+  inset: 52px 0 0 0;
   background: rgba(0,0,0,0.7);
   backdrop-filter: blur(4px);
-  z-index: 200;
+  z-index: 250;
   align-items: flex-start;
   justify-content: center;
   padding: 40px 20px;
@@ -663,9 +701,11 @@ body {
 
 .modal-tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
   padding: 12px 24px 0;
   border-bottom: 1px solid var(--border);
+  overflow-x: auto;
 }
 .modal-tab-btn {
   background: none;
@@ -748,9 +788,9 @@ body {
   border: 1px solid;
   font-weight: 500;
 }
-.ov-badge-running { background: rgba(82,196,105,.12); border-color: rgba(82,196,105,.35); color: #52c469; }
-.ov-badge-stopped { background: rgba(224,108,117,.1); border-color: rgba(224,108,117,.3); color: #e06c75; }
-.ov-badge-deploy  { background: rgba(97,175,239,.1); border-color: rgba(97,175,239,.3); color: #61afef; }
+.ov-badge-running { background: rgba(34,197,94,.12); border-color: rgba(34,197,94,.35); color: var(--green); }
+.ov-badge-stopped { background: rgba(239,68,68,.1); border-color: rgba(239,68,68,.3); color: var(--red); }
+.ov-badge-deploy  { background: rgba(var(--accent-light-rgb),.1); border-color: rgba(var(--accent-light-rgb),.3); color: var(--accent-light); }
 .ov-badge-status  { background: rgba(255,255,255,.06); border-color: var(--border); color: var(--text-sec); }
 .ov-regen-btn {
   position: absolute; top: 16px; right: 16px;
@@ -877,7 +917,7 @@ body {
 }
 .ov-svc-node-box.self  { background:rgba(var(--accent-light-rgb),.12); border-color:rgba(var(--accent-light-rgb),.4); color:var(--accent-light); }
 .ov-svc-node-box.ext   { background:var(--card); border-color:var(--border); color:var(--text-sec); }
-.ov-svc-node-box.ext.shared { border-color:rgba(165,180,252,.35); color:#a5b4fc; }
+.ov-svc-node-box.ext.shared { border-color:rgba(var(--accent-light-rgb),.35); color:var(--accent-light); }
 .ov-svc-node-meta { font-size: 10px; color: var(--text-muted); }
 .ov-svc-arrow {
   flex: 0 0 auto;
@@ -889,9 +929,9 @@ body {
 }
 .ov-svc-shared-badge {
   font-size: 9px;
-  background: rgba(165,180,252,.1);
-  border: 1px solid rgba(165,180,252,.25);
-  color: #a5b4fc;
+  background: rgba(var(--accent-light-rgb),.1);
+  border: 1px solid rgba(var(--accent-light-rgb),.25);
+  color: var(--accent-light);
   border-radius: 10px;
   padding: 1px 6px;
   white-space: nowrap;
@@ -979,7 +1019,7 @@ body {
   padding: 2px 8px;
   border-radius: 4px;
   background: rgba(var(--accent-rgb),0.15);
-  color: #a5b4fc;
+  color: var(--accent-light);
   margin-bottom: 8px;
 }
 .deploy-grid { display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; font-size: 12px; }
@@ -1141,6 +1181,48 @@ body {
   margin: 8px 0;
 }
 
+/* Prompt page */
+.prompt-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text);
+  transition: border-color .15s;
+}
+.prompt-card:hover { border-color: var(--accent); }
+.prompt-card .prompt-meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 11px;
+}
+.prompt-proj-badge {
+  background: rgba(var(--accent-rgb),.12);
+  color: var(--accent);
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 11px;
+}
+.prompt-date { color: var(--text-muted); }
+.prompt-card mark {
+  background: rgba(var(--accent-rgb), .3);
+  color: var(--text);
+  border-radius: 2px;
+  padding: 0 1px;
+}
+.prompt-proj-tab {
+  font-size: 11px; padding: 3px 10px; border-radius: 10px;
+  border: 1px solid var(--border); background: transparent;
+  color: var(--text-muted); cursor: pointer; transition: all .15s;
+}
+.prompt-proj-tab:hover { border-color: var(--accent); color: var(--text); }
+.prompt-proj-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
 .ai-cmd-section {
   margin-top: 20px;
   padding-top: 16px;
@@ -1296,8 +1378,14 @@ body {
 @media (max-width: 640px) {
   /* Topbar */
   .topbar { padding: 0 14px; gap: 8px; height: 48px; }
-  .topbar-title { font-size: 14px; }
+  .topbar-title .logo-m { font-size: 24px; }
+  .topbar-title .logo-ira { font-size: 18px; }
+  .topbar-title .logo-cursor { font-size: 20px; }
   .refresh-btn { font-size: 12px; padding: 4px 10px; }
+  .settings-btn, .skin-btn, .search-btn, .chat-fab {
+    display: inline-flex; align-items: center; justify-content: center;
+    height: 30px; padding: 0 8px; font-size: 17px;
+  }
 
   /* Main page padding */
   #panel-overview { padding: 0 12px 48px !important; }
@@ -1349,8 +1437,6 @@ body {
   .doc-file-item.active { background: rgba(var(--accent-rgb),.2); }
   .ai-cmd-section { width: 100%; margin-top: 6px; }
 
-  /* Import overlay */
-  #import-overlay > div { width: calc(100vw - 32px) !important; padding: 18px !important; }
 }
 
 @media (max-width: 480px) {
@@ -1366,9 +1452,11 @@ body {
 .sm-kpi { flex: 1; background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; }
 .sm-kpi.accent { background: rgba(var(--accent-rgb),.06); border-color: rgba(var(--accent-rgb),.18); }
 .sm-kpi.green  { background: rgba(74,222,128,.04); border-color: rgba(74,222,128,.15); }
+.sm-kpi.red    { background: rgba(239,68,68,.06); border-color: rgba(239,68,68,.25); }
 .sm-kv { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .sm-kv.purple { color: var(--accent-light); }
 .sm-kv.green  { color: var(--green); }
+.sm-kv.red    { color: var(--red); }
 .sm-kv.yellow { color: var(--yellow); }
 .sm-kl { font-size: 10px; color: var(--text-muted); margin-bottom: 4px; }
 .sm-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px; }
@@ -1410,35 +1498,94 @@ body {
 .sm-todo-dot.completed   { background: var(--green); }
 .sm-todo-dot.in_progress { background: var(--yellow); }
 .sm-todo-dot.pending { background: var(--text-muted); }
-@media (max-width: 640px) { .sm-cols { grid-template-columns: 1fr; } .sm-kpi-row { flex-wrap: wrap; } }
+@media (max-width: 640px) { .sm-cols { grid-template-columns: 1fr; } .sm-kpi-row { flex-wrap: wrap; } #balance-row { grid-template-columns: 1fr !important; } }
 /* ── Chat Agent Panel ───────────────────────────── */
 .chat-fab {
-  position: fixed; bottom: 84px; right: 24px; z-index: 200;
-  width: 52px; height: 52px; border-radius: 50%;
-  background: var(--accent); border: none; cursor: pointer;
-  font-size: 22px; color: #fff; box-shadow: 0 4px 16px rgba(var(--accent-rgb),.45);
-  transition: transform .15s, box-shadow .15s;
-  display: flex; align-items: center; justify-content: center;
+  background: none; border: 1px solid var(--border); color: var(--text-muted);
+  font-size: 15px; padding: 5px 10px; border-radius: 6px; cursor: pointer;
+  transition: all .15s; line-height: 1;
 }
-.chat-fab:hover { transform: scale(1.08); box-shadow: 0 6px 24px rgba(var(--accent-rgb),.7); }
+.chat-fab:hover { border-color: var(--accent); color: var(--accent); }
+.chat-fab.panel-open { background: rgba(var(--accent-rgb),.12); border-color: var(--accent); color: var(--accent); }
 .chat-panel {
   position: fixed; right: 0; top: 0; bottom: 0; width: 380px; z-index: 201;
   background: var(--card); border-left: 1px solid var(--border);
   display: flex; flex-direction: column;
   transform: translateX(100%); transition: transform .25s cubic-bezier(.4,0,.2,1);
   box-shadow: -4px 0 32px rgba(0,0,0,.4);
+  overflow: hidden;
 }
 .chat-panel.open { transform: translateX(0); }
 .chat-header {
   display: flex; align-items: center; padding: 14px 16px;
   border-bottom: 1px solid var(--border); flex-shrink: 0;
 }
-.chat-header-title { font-weight: 700; font-size: 15px; flex: 1; color: var(--text); }
-.chat-close {
-  background: none; border: none; color: var(--text-muted);
-  font-size: 22px; cursor: pointer; line-height: 1; padding: 0 4px;
+.chat-header-title { font-weight: 700; font-size: 15px; color: var(--text); }
+.chat-pull-tab {
+  position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+  width: 20px; height: 56px;
+  background: rgba(255,255,255,.04); border-right: 1px solid var(--border);
+  border-radius: 0 6px 6px 0;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--text-muted); font-size: 14px;
+  transition: color .15s, background .15s;
+  z-index: 1;
 }
-.chat-close:hover { color: var(--text); }
+.chat-pull-tab:hover { color: var(--text); background: rgba(255,255,255,.08); }
+.chat-terminals {
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.chat-terminals-header {
+  display: flex; align-items: center; padding: 8px 16px;
+  cursor: pointer; user-select: none; font-size: 12px;
+  color: var(--text-muted); gap: 6px;
+}
+.chat-terminals-header:hover { color: var(--text); }
+.chat-terminals-body { padding: 0 12px 8px; }
+.chat-pane-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 4px; border-radius: 6px; cursor: pointer;
+  font-size: 12px; color: var(--text-sec);
+}
+.chat-pane-row:hover { background: rgba(255,255,255,.04); }
+.chat-pane-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.chat-pane-dot.running { background: var(--green); }
+.chat-pane-dot.waiting { background: var(--orange); animation: pulse-orange 1.5s infinite; }
+@keyframes pulse-orange {
+  0%,100% { box-shadow: 0 0 0 0 rgba(251,146,60,.4); }
+  50%      { box-shadow: 0 0 0 4px rgba(251,146,60,0); }
+}
+.chat-pane-label { flex: 1; }
+.chat-pane-target { font-size: 10px; color: var(--text-muted); font-family: monospace; }
+.chat-terminal-alert {
+  margin: 0 12px 8px; padding: 10px 12px; border-radius: 8px;
+  background: rgba(251,146,60,.08); border: 1px solid rgba(251,146,60,.3);
+}
+.chat-terminal-alert-meta { font-size: 11px; color: var(--orange); margin-bottom: 6px; }
+.chat-terminal-alert-snippet {
+  font-size: 11px; color: var(--text-sec); font-family: monospace;
+  white-space: pre-wrap; max-height: 60px; overflow: hidden; margin-bottom: 8px;
+}
+.chat-terminal-alert-btns { display: flex; gap: 6px; align-items: center; }
+.chat-alert-btn {
+  font-size: 12px; padding: 3px 10px; border-radius: 5px; cursor: pointer; border: 1px solid;
+}
+.chat-alert-btn.allow { background: rgba(34,197,94,.12); border-color: var(--green); color: var(--green); }
+.chat-alert-btn.deny  { background: rgba(239,68,68,.12);  border-color: var(--red);   color: var(--red); }
+.chat-alert-btn.custom{ background: rgba(255,255,255,.05); border-color: var(--border); color: var(--text-muted); }
+.chat-alert-btn:hover { opacity: .8; }
+.chat-register-row { margin-top: 4px; display: flex; gap: 6px; }
+.chat-register-input {
+  flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 5px;
+  color: var(--text); font-size: 11px; padding: 3px 8px; outline: none; font-family: monospace;
+}
+.chat-register-input:focus { border-color: var(--accent); }
+.chat-register-btn {
+  font-size: 11px; padding: 3px 8px; background: none;
+  border: 1px solid var(--border); border-radius: 5px; color: var(--text-muted); cursor: pointer;
+}
+.chat-register-btn:hover { border-color: var(--accent); color: var(--accent); }
 .chat-messages {
   flex: 1; overflow-y: auto; padding: 14px 12px;
   display: flex; flex-direction: column; gap: 10px;
@@ -1486,18 +1633,130 @@ body {
 }
 .chat-send:hover { background: var(--accent-dim); }
 .chat-send:disabled { opacity: .45; cursor: default; }
-@media (max-width: 480px) { .chat-panel { width: 100vw; } }
+@media (max-width: 480px) {
+  .chat-panel {
+    width: 100vw;
+    top: 0; bottom: 0; height: auto;
+    padding-top: env(safe-area-inset-top);
+  }
+  .chat-pull-tab {
+    width: 24px; height: 72px; font-size: 18px;
+  }
+  .chat-input { font-size: 16px; }
+}
+/* ── LLM API tags ───────────────────────────────── */
+.card-llm-tag {
+  font-size: 9px; padding: 1px 6px; border-radius: 3px;
+  background: rgba(var(--accent-rgb),.12);
+  border: 1px solid rgba(var(--accent-rgb),.3);
+  color: var(--accent-light); white-space: nowrap; font-weight: 600;
+  letter-spacing: .3px;
+}
+
+/* ── API Balance ─────────────────────────────────── */
+.balance-card {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 10px; padding: 12px 18px; flex-shrink: 0;
+}
+.balance-card.error { border-color: rgba(239,68,68,.3); }
+.balance-logo { font-size: 11px; font-weight: 700; color: var(--text-muted); letter-spacing: .5px; white-space: nowrap; }
+.balance-divider { width: 1px; height: 28px; background: var(--border); }
+.balance-stat { display: flex; flex-direction: column; gap: 2px; }
+.balance-val { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text); }
+.balance-val.low { color: var(--orange); }
+.balance-val.empty { color: var(--red); }
+.balance-lbl { font-size: 9px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .8px; }
+.balance-refresh { font-size: 11px; color: var(--text-muted); cursor: pointer; padding: 2px 6px; border-radius: 4px; border: 1px solid transparent; transition: all .15s; margin-left: 4px; }
+.balance-refresh:hover { border-color: var(--border); color: var(--text-sec); }
+.activity-chart-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px 8px; display: flex; flex-direction: column; gap: 6px; min-width: 320px; flex: 1; }
+.activity-chart-header { display: flex; justify-content: space-between; align-items: center; }
+.activity-chart-title { font-size: 11px; font-weight: 700; color: var(--text-muted); letter-spacing: .5px; text-transform: uppercase; }
+.activity-chart-total { font-size: 12px; font-weight: 700; color: var(--text); }
+.activity-bars { display: flex; gap: 3px; align-items: flex-end; height: 48px; }
+.activity-bar { flex: 1; border-radius: 2px 2px 0 0; background: var(--accent); opacity: .7; min-height: 2px; transition: opacity .15s; }
+.activity-bar:hover { opacity: 1; }
+.activity-bar.zero { background: var(--border); opacity: 1; }
+.activity-date-row { display: flex; justify-content: space-between; }
+.activity-date-lbl { font-size: 9px; color: var(--text-muted); }
+
+/* ── Settings Modal ─────────────────────────────── */
+.settings-overlay {
+  display: none; position: fixed; inset: 52px 0 0 0;
+  background: rgba(0,0,0,.6); z-index: 250;
+  align-items: flex-start; justify-content: center;
+  padding: 60px 20px;
+}
+.settings-overlay.open { display: flex; }
+.settings-modal {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 12px; width: 100%; max-width: 480px;
+  padding: 24px;
+}
+.settings-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 20px; }
+.settings-group { margin-bottom: 16px; }
+.settings-label { font-size: 11px; color: var(--text-muted); margin-bottom: 6px; letter-spacing: .5px; }
+.settings-input {
+  width: 100%; box-sizing: border-box;
+  background: var(--card-deep); border: 1px solid var(--border);
+  border-radius: 6px; padding: 8px 10px;
+  color: var(--text); font-size: 13px; font-family: var(--font-mono);
+  outline: none; transition: border-color .15s;
+}
+.settings-input:focus { border-color: var(--accent); }
+.settings-footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px; }
+.settings-btn-cancel {
+  padding: 7px 16px; background: var(--card-deep); border: 1px solid var(--border);
+  border-radius: 6px; color: var(--text-sec); cursor: pointer; font-size: 13px;
+}
+.settings-btn-save {
+  padding: 7px 16px; background: var(--accent); border: none;
+  border-radius: 6px; color: #fff; cursor: pointer; font-size: 13px;
+}
+.settings-btn { background: none; border: 1px solid var(--border); color: var(--text-muted);
+  font-size: 17px; padding: 5px 10px; border-radius: 6px; cursor: pointer; transition: all .15s; line-height: 1; }
+.settings-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── History Search ──────────────────────────────────────────────────────── */
+.search-btn {
+  background: none; border: 1px solid var(--border); color: var(--text-muted);
+  border-radius: 6px; padding: 5px 10px; font-size: 17px; cursor: pointer; line-height: 1;
+  display: none; /* shown only when admin */
+}
+.search-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+.search-overlay {
+  position: fixed; top: 52px; left: 50%; transform: translateX(-50%);
+  width: min(600px, 94vw); background: var(--card); border: 1px solid var(--border);
+  border-radius: 10px; box-shadow: 0 8px 32px rgba(0,0,0,.5);
+  z-index: 1100; padding: 12px;
+}
+.search-overlay.hidden { display: none; }
+.search-overlay input {
+  width: 100%; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 6px; color: var(--text); font-size: 14px; padding: 8px 12px;
+  outline: none;
+}
+.search-overlay input:focus { border-color: var(--accent); }
+.search-results { margin-top: 8px; max-height: 360px; overflow-y: auto; }
+.search-result-item {
+  padding: 10px 12px; border-radius: 6px; cursor: pointer;
+  border-bottom: 1px solid var(--border);
+}
+.search-result-item:last-child { border-bottom: none; }
+.search-result-item:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.search-result-meta { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+.search-result-snippet { font-size: 13px; color: var(--text-sec); line-height: 1.5; }
+.search-result-snippet mark { background: color-mix(in srgb, var(--yellow) 30%, transparent); color: var(--text); border-radius: 2px; padding: 0 2px; }
+.search-empty { text-align: center; color: var(--text-muted); padding: 20px; font-size: 13px; }
+
 /* ── Skin Picker ────────────────────────────────── */
 .skin-wrap { position: relative; }
 .skin-btn {
-  background: rgba(var(--accent-rgb), 0.15);
-  border: 1px solid var(--accent);
-  color: var(--accent-light);
-  font-size: 13px; padding: 5px 14px;
-  border-radius: 6px; cursor: pointer;
-  transition: all .15s;
+  background: none; border: 1px solid var(--border); color: var(--text-muted);
+  font-size: 17px; padding: 5px 10px; border-radius: 6px; cursor: pointer; transition: all .15s; line-height: 1;
 }
-.skin-btn:hover { background: var(--accent); color: #fff; }
+.skin-btn:hover { border-color: var(--accent); color: var(--accent); }
 .skin-picker {
   display: none; position: fixed;
   background: var(--card); border: 1px solid var(--border);
@@ -1528,30 +1787,50 @@ body {
 
 <!-- TOP BAR -->
 <div class="topbar">
-  <span class="topbar-title">✦ Mira</span>
+  <span class="topbar-title"><span class="logo-m">M</span><span class="logo-ira">IRA</span><span class="logo-cursor">_</span></span>
   <div class="topbar-spacer"></div>
-  <button class="refresh-btn" onclick="showImportModal()" style="background:#1e3a28;border-color:#4a7c59;color:#7fc794">+ 导入项目</button>
+  <button class="search-btn" id="search-btn" onclick="toggleSearch()" title="搜索历史">⌕</button>
+  <button class="chat-fab" id="chat-fab" onclick="toggleChat()" aria-label="打开 Mira 对话" style="position:relative">⌘<span id="anomaly-badge"></span></button>
+<button class="settings-btn" onclick="openSettings()" title="设置">⚙</button>
   <div class="skin-wrap">
-    <button class="skin-btn" id="skin-btn" onclick="toggleSkinPicker()" aria-label="切换皮肤">◈ 皮肤</button>
+    <button class="skin-btn" id="skin-btn" onclick="toggleSkinPicker()" aria-label="切换皮肤" title="切换皮肤">◈</button>
     <div class="skin-picker" id="skin-picker"></div>
   </div>
 </div>
 
 <div id="toast-container"></div>
 
+<!-- Search Overlay -->
+<div class="search-overlay hidden" id="search-overlay">
+  <input type="text" id="search-input" placeholder="搜索历史会话…" autocomplete="off">
+  <div class="search-results" id="search-results"></div>
+</div>
 
-<!-- Import Modal -->
-<div id="import-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;display:none;align-items:center;justify-content:center">
-  <div style="background:#1e1e1e;border:1px solid #333;border-radius:8px;padding:24px;width:480px;max-width:90vw">
-    <div style="font-size:15px;font-weight:600;margin-bottom:16px">导入项目</div>
-    <div style="font-size:12px;color:#888;margin-bottom:8px">输入项目目录的绝对路径（必须是 git 仓库）</div>
-    <input id="import-path-input" type="text" placeholder="/Users/chao/projects/my-project"
-      style="width:100%;box-sizing:border-box;background:#111;border:1px solid #444;border-radius:4px;padding:8px 10px;color:#e0e0e0;font-size:13px;outline:none;margin-bottom:12px"
-      onkeydown="if(event.key==='Enter')doImport()">
-    <div id="import-error" style="color:#e06c75;font-size:12px;min-height:18px;margin-bottom:8px"></div>
-    <div style="display:flex;gap:8px;justify-content:flex-end">
-      <button onclick="hideImportModal()" style="padding:6px 14px;background:#2a2a2a;border:1px solid #444;border-radius:4px;color:#aaa;cursor:pointer">取消</button>
-      <button id="import-btn" onclick="doImport()" style="padding:6px 14px;background:#1e3a28;border:1px solid #4a7c59;border-radius:4px;color:#7fc794;cursor:pointer">导入</button>
+
+<!-- Settings Modal -->
+<div class="settings-overlay" id="settings-overlay" onclick="if(event.target===this)closeSettings()">
+  <div class="settings-modal">
+    <div class="settings-title">⚙ 设置 — API Keys</div>
+    <div class="settings-group">
+      <div class="settings-label">OpenRouter API Key</div>
+      <input class="settings-input" id="set-openrouter" type="password" placeholder="sk-or-..." autocomplete="off">
+    </div>
+    <div class="settings-group">
+      <div class="settings-label">DeepSeek API Key</div>
+      <input class="settings-input" id="set-deepseek" type="password" placeholder="sk-..." autocomplete="off">
+    </div>
+    <div class="settings-group">
+      <div class="settings-label">Kimi (Moonshot) API Key</div>
+      <input class="settings-input" id="set-kimi" type="password" placeholder="sk-..." autocomplete="off">
+    </div>
+    <div class="settings-group" style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border)">
+      <div class="settings-label">管理员密码</div>
+      <input class="settings-input" id="set-admin-password" type="password" placeholder="留空则不修改" autocomplete="new-password">
+    </div>
+    <div class="settings-footer">
+      <button id="settings-logout-btn" onclick="logout();closeSettings()" style="display:none;background:none;border:1px solid var(--border);color:var(--text-muted);padding:7px 14px;border-radius:6px;cursor:pointer;font-size:13px;margin-right:auto" title="退出登录">退出登录</button>
+      <button class="settings-btn-cancel" onclick="closeSettings()">取消</button>
+      <button class="settings-btn-save" onclick="saveSettings()">保存</button>
     </div>
   </div>
 </div>
@@ -1559,6 +1838,7 @@ body {
 <!-- MAIN PAGE -->
 <div id="panel-overview" style="padding: 0 28px 48px" class="main-page">
   <div class="kpi-row" id="kpi-row" style="margin-top:24px"></div>
+  <div id="balance-row" style="display:none;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px"></div>
   <div class="filter-bar">
     <button class="filter-btn" id="filter-all" onclick="setFilter('all', this)">全部 <span class="filter-count" id="count-all">0</span></button>
     <button class="filter-btn active" id="filter-active" onclick="setFilter('active', this)">Active <span class="filter-count" id="count-active">0</span></button>
@@ -1598,6 +1878,7 @@ body {
   </table>
 </div>
 
+
 <!-- PROJECT DETAIL MODAL -->
 <div class="modal-overlay" id="modal-overlay" onclick="handleOverlayClick(event)">
   <div class="modal" id="modal">
@@ -1618,19 +1899,21 @@ body {
       <button class="modal-tab-btn active" id="mtab-summary" onclick="showModalTab('summary')"> 概览</button>
       <button class="modal-tab-btn" id="mtab-overview" onclick="showModalTab('overview')"> 全局面貌</button>
       <button class="modal-tab-btn" id="mtab-design" onclick="showModalTab('design')"> 文档</button>
+      <button class="modal-tab-btn" id="mtab-prompts" onclick="showModalTab('prompts')"> Prompts</button>
     </div>
     <div class="modal-body">
       <div class="modal-tab-content active" id="mcontent-summary"></div>
       <div class="modal-tab-content" id="mcontent-overview"></div>
       <div class="modal-tab-content" id="mcontent-design"></div>
+      <div class="modal-tab-content" id="mcontent-prompts"></div>
     </div>
     <div class="modal-footer">
-      <div id="delete-confirm-row" style="display:none;align-items:center;gap:8px;font-size:12px;color:#e06c75;">
+      <div id="delete-confirm-row" style="display:none;align-items:center;gap:8px;font-size:12px;color:var(--red);">
         <span>确认从 Mira 移除此项目？（不会删除文件）</span>
-        <button onclick="confirmDeleteProject()" style="padding:3px 12px;border:1px solid #e06c75;border-radius:4px;background:rgba(224,108,117,.15);color:#e06c75;cursor:pointer;font-size:12px;">确认移除</button>
-        <button onclick="cancelDelete()" style="padding:3px 10px;border:1px solid #333;border-radius:4px;background:none;color:#777;cursor:pointer;font-size:12px;">取消</button>
+        <button onclick="confirmDeleteProject()" style="padding:3px 12px;border:1px solid var(--red);border-radius:4px;background:rgba(239,68,68,.15);color:var(--red);cursor:pointer;font-size:12px;">确认移除</button>
+        <button onclick="cancelDelete()" style="padding:3px 10px;border:1px solid var(--border);border-radius:4px;background:none;color:var(--text-muted);cursor:pointer;font-size:12px;">取消</button>
       </div>
-      <button id="delete-init-btn" onclick="initDelete()" style="margin-left:auto;background:none;border:1px solid #3a2020;border-radius:4px;color:#7a4040;cursor:pointer;font-size:12px;padding:4px 12px;transition:all .15s">移除项目</button>
+      <button id="delete-init-btn" onclick="initDelete()" style="margin-left:auto;background:none;border:1px solid rgba(239,68,68,.3);border-radius:4px;color:rgba(239,68,68,.5);cursor:pointer;font-size:12px;padding:4px 12px;transition:all .15s">移除项目</button>
     </div>
   </div>
 </div>
@@ -1644,6 +1927,74 @@ let currentProject = null;
 let currentDocIdx = 0;
 let currentModalTab = 'overview';
 let wsSnapshot = {};  // projectId -> {is_running, port}
+
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+let _adminToken = localStorage.getItem('mira-admin-token') || '';
+let _isAdmin = false;
+
+function _authHeaders(extra = {}) {
+  return _adminToken ? {'X-Admin-Token': _adminToken, ...extra} : extra;
+}
+
+async function _initAuth() {
+  try {
+    const { admin } = await fetch('/api/auth/check', {headers: _authHeaders()}).then(r => r.json());
+    _isAdmin = admin;
+    if (!admin) { _adminToken = ''; localStorage.removeItem('mira-admin-token'); }
+  } catch(_) { _isAdmin = true; }
+  _updateLogoutBtn();
+}
+
+function _updateLogoutBtn() {
+  const sBtn = document.getElementById('search-btn');
+  if (sBtn) sBtn.style.display = (_isAdmin && _adminToken) ? '' : 'none';
+}
+
+function logout() {
+  _adminToken = ''; _isAdmin = false;
+  localStorage.removeItem('mira-admin-token');
+  _updateLogoutBtn();
+  loadProjects();
+  loadBalance();
+}
+
+let _loginCallback = null;
+
+function openLoginModal(cb) {
+  _loginCallback = cb || null;
+  const ov = document.getElementById('login-overlay');
+  ov.style.display = 'flex';
+  document.getElementById('login-password').value = '';
+  document.getElementById('login-error').style.display = 'none';
+  setTimeout(() => document.getElementById('login-password').focus(), 50);
+}
+
+function closeLoginModal() {
+  document.getElementById('login-overlay').style.display = 'none';
+  _loginCallback = null;
+}
+
+async function doLogin() {
+  const pw = document.getElementById('login-password').value;
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({password: pw}),
+    });
+    if (!res.ok) throw new Error('wrong');
+    const { token } = await res.json();
+    _adminToken = token;
+    _isAdmin = true;
+    localStorage.setItem('mira-admin-token', token);
+    _updateLogoutBtn();
+    closeLoginModal();
+    loadProjects();
+    loadBalance();
+    if (_loginCallback) { const fn = _loginCallback; _loginCallback = null; fn(); }
+  } catch(_) {
+    document.getElementById('login-error').style.display = 'block';
+  }
+}
 
 // ─── Utility ─────────────────────────────────────────────────────────────────
 function escHtml(s) {
@@ -1743,7 +2094,7 @@ async function setStatus(projectId, newStatus, optEl) {
   try {
     const res = await fetch(`/api/projects/${encodeURIComponent(projectId)}/status`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: _authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ status: newStatus }),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -1812,7 +2163,7 @@ const LANG_COLORS = [
 // ─── Load Projects ────────────────────────────────────────────────────────────
 async function loadProjects() {
   try {
-    const res = await fetch('/api/projects');
+    const res = await fetch('/api/projects', {headers: _authHeaders()});
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     allProjects = await res.json();
     renderCards();
@@ -1890,6 +2241,7 @@ function renderCard(p) {
   const tags = allTags.slice(0, 4);
   const moreTags = allTags.slice(4);
   const isRunning = svc.is_running;
+  const isDown = svc.port && !isRunning;  // configured port but not healthy
   const deps = allBaseServices.filter(s => (s.used_by || []).includes(p.id));
 
   // ── Domain block (C1 style) ──────────────────────────────
@@ -1903,12 +2255,20 @@ function renderCard(p) {
     ? `<a class="card-port-badge" href="http://localhost:${svc.port}" target="_blank"
          onclick="event.stopPropagation()" title="本地 :${svc.port}">:${svc.port}</a>`
     : '';
+  const domainDot = svc.public_domain
+    ? (svc.domain_ok === false
+        ? `<span class="card-domain-dot off" title="域名不可访问" style="background:var(--red);box-shadow:0 0 5px var(--red)"></span>`
+        : svc.domain_ok === true
+          ? `<span class="card-domain-dot" title="域名正常"></span>`
+          : `<span class="card-domain-dot${isRunning ? '' : ' off'}"></span>`)
+    : `<span class="card-domain-dot${isRunning ? '' : ' off'}"></span>`;
   const domainBlock = `
     <div class="card-domain">
-      <span class="card-domain-dot${isRunning ? '' : ' off'}"></span>
+      ${domainDot}
       ${svc.public_domain
         ? `<a class="card-domain-url" href="https://${escHtml(svc.public_domain)}" target="_blank"
-             onclick="event.stopPropagation()">${escHtml(svc.public_domain)}</a>`
+             onclick="event.stopPropagation()"
+             style="${svc.domain_ok === false ? 'color:var(--red)' : ''}">${escHtml(svc.public_domain)}</a>`
         : `<span class="card-domain-nourl">无公开域名</span>`}
       ${portBadge}
       ${deployMeta}
@@ -1917,6 +2277,7 @@ function renderCard(p) {
   // ── Stats grid: commits | files | lines | Claude cost ───
   const claudeCostVal = (() => {
     if (!ca) return '—';
+    if (ca._masked) return '***';
     const c = ca.estimated_cost_usd || 0;
     if (c === 0) return '—';
     if (c < 1) return `$${c.toFixed(2)}`;
@@ -1933,8 +2294,8 @@ function renderCard(p) {
       parts.push(`上次: ${diffH < 1 ? '刚刚' : diffH < 24 ? diffH + 'h前' : diffD + 'd前'}`);
     }
     if (ca.session_count_7d) parts.push(`7天 ${ca.session_count_7d} 次`);
-    if (ca.output_tokens) parts.push(`输出 ${fmtNum(ca.output_tokens)} tok`);
-    if (ca.estimated_cost_usd) parts.push(`≈ $${ca.estimated_cost_usd.toFixed(2)}`);
+    if (!ca._masked && ca.output_tokens) parts.push(`输出 ${fmtNum(ca.output_tokens)} tok`);
+    if (!ca._masked && ca.estimated_cost_usd) parts.push(`≈ $${ca.estimated_cost_usd.toFixed(2)}`);
     return parts.join(' · ');
   })();
   const statGrid = `
@@ -1970,9 +2331,9 @@ function renderCard(p) {
     ? ca.session_spark_15d : Array(15).fill(0);
   const spark15Max = Math.max(...spark15, 1);
   const spark15Bars = spark15.map(v => {
-    const h = v === 0 ? 100 : Math.min(100, Math.max(15, Math.round((v / 12) * 100)));
+    const h = v === 0 ? 2 : Math.max(4, Math.round((v / spark15Max) * 46));
     const cls = v === 0 ? '' : v >= 12 ? ' hi' : v >= spark15Max * 0.7 ? ' hi' : ' on';
-    return `<span class="card-spark15-bar${cls}" style="height:${h}%" title="${v.toFixed(1)}h 活跃"></span>`;
+    return `<span class="card-spark15-bar${cls}" style="height:${h}px" title="${v.toFixed(1)}h 活跃"></span>`;
   }).join('');
 
   const fmtTok = t => t >= 1e9 ? (t/1e9).toFixed(1)+'B' : t >= 1e6 ? (t/1e6).toFixed(1)+'M' : t >= 1e3 ? (t/1e3).toFixed(0)+'k' : String(t);
@@ -1988,7 +2349,7 @@ function renderCard(p) {
         <div class="ccm-row"><span class="ccm-lbl">上次</span><span class="ccm-lbl">活跃</span><span class="ccm-lbl">30天会话</span></div>
         <div class="ccm-row"><span class="ccm-val">${claudeLastStr}</span><span class="ccm-val">${ca ? (ca.active_hours||0) + 'h' : '—'}</span><span class="ccm-val">${ca ? ca.session_count_30d||0 : '—'}</span></div>
         <div class="ccm-row" style="margin-top:4px"><span class="ccm-lbl">输出</span><span class="ccm-lbl">输入</span><span class="ccm-lbl">Cache读</span></div>
-        <div class="ccm-row"><span class="ccm-val">${ca ? fmtTok(ca.output_tokens||0) : '—'}</span><span class="ccm-val">${ca ? fmtTok(ca.input_tokens||0) : '—'}</span><span class="ccm-val">${ca ? fmtTok(ca.cache_read_tokens||0) : '—'}</span></div>
+        <div class="ccm-row"><span class="ccm-val">${ca ? (ca._masked ? '***' : fmtTok(ca.output_tokens||0)) : '—'}</span><span class="ccm-val">${ca ? (ca._masked ? '***' : fmtTok(ca.input_tokens||0)) : '—'}</span><span class="ccm-val">${ca ? (ca._masked ? '***' : fmtTok(ca.cache_read_tokens||0)) : '—'}</span></div>
       </div>
       <div class="card-spark15">${spark15Bars}</div>
     </div>`;
@@ -2005,17 +2366,23 @@ function renderCard(p) {
   const moreTag = moreTags.length > 0
     ? `<span class="card-tag-more">+${moreTags.length}</span>`
     : '';
+  const llmTags = (p.llm_apis || []).map(name =>
+    `<span class="card-llm-tag">${escHtml(name)}</span>`
+  ).join('');
   const footer = `
     <div class="card-footer-new">
       <div class="card-footer-row">${svcPills}</div>
-      <div class="card-footer-row">${tagSpans}${moreTag}</div>
+      <div class="card-footer-row">${tagSpans}${moreTag}${llmTags ? '<span style="flex:1"></span>' + llmTags : ''}</div>
     </div>`;
 
-  return `<div class="project-card${isRunning ? ' card-running' : ''}" data-project-id="${escHtml(p.id)}">
+  const cardClass = isRunning ? ' card-running' : isDown ? ' card-down' : '';
+  return `<div class="project-card${cardClass}" data-project-id="${escHtml(p.id)}">
     <div class="card-header">
       ${isRunning
         ? `<span style="width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 7px var(--green);flex-shrink:0;animation:pulse-green 2s infinite"></span>`
-        : `<span style="width:8px;height:8px;border-radius:50%;background:var(--border);flex-shrink:0"></span>`}
+        : isDown
+          ? `<span style="width:8px;height:8px;border-radius:50%;background:var(--red);flex-shrink:0;animation:pulse-red 1.5s infinite"></span>`
+          : `<span style="width:8px;height:8px;border-radius:50%;background:var(--border);flex-shrink:0"></span>`}
       <span class="card-name">${escHtml(p.name)}</span>
       ${statusDropdown(p.id, p.status || 'active')}
       <a href="/projects/${escHtml(p.id)}" target="_blank"
@@ -2023,6 +2390,7 @@ function renderCard(p) {
          title="在新标签页打开" style="margin-left:auto;font-size:13px;color:var(--text-muted);text-decoration:none;transition:color .15s"
          onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text-muted)'">↗</a>
     </div>
+    ${p.description ? `<div class="card-desc">${escHtml(p.description)}</div>` : ''}
     ${domainBlock}
     ${statGrid}
     ${gitSparkRow}
@@ -2098,10 +2466,11 @@ function renderGlobal() {
   const commits = allProjects.reduce((s, p) => s + ((p.git && p.git.monthly_commits) || 0), 0);
   const totalFiles = allProjects.reduce((s, p) => s + ((p.loc && p.loc.file_count) || 0), 0);
   const totalLines = allProjects.reduce((s, p) => s + ((p.loc && p.loc.code_lines) || 0), 0);
-  const totalCost = allProjects.reduce((s, p) => s + ((p.claude_activity && p.claude_activity.estimated_cost_usd) || 0), 0);
-  const totalOut = allProjects.reduce((s, p) => s + ((p.claude_activity && p.claude_activity.output_tokens) || 0), 0);
-  const totalIn = allProjects.reduce((s, p) => s + ((p.claude_activity && p.claude_activity.input_tokens) || 0), 0);
-  const totalCacheR = allProjects.reduce((s, p) => s + ((p.claude_activity && p.claude_activity.cache_read_tokens) || 0), 0);
+  const anyCostMasked = allProjects.some(p => p.claude_activity?._masked);
+  const totalCost = allProjects.reduce((s, p) => s + ((p.claude_activity?.estimated_cost_usd) || 0), 0);
+  const totalOut = allProjects.reduce((s, p) => s + ((p.claude_activity?.output_tokens) || 0), 0);
+  const totalIn = allProjects.reduce((s, p) => s + ((p.claude_activity?.input_tokens) || 0), 0);
+  const totalCacheR = allProjects.reduce((s, p) => s + ((p.claude_activity?.cache_read_tokens) || 0), 0);
 
   document.getElementById('kpi-row').innerHTML = `
     <div class="kpi-card">
@@ -2127,13 +2496,13 @@ function renderGlobal() {
     <div class="kpi-card" style="flex:1.6;border-color:rgba(var(--accent-light-rgb),.2)">
       <div class="kpi-accent-bar" style="background:var(--accent)"></div>
       <div class="kpi-inner">
-        <div class="kpi-stat"><span class="kpi-label">Claude 花费</span><span class="kpi-value kpi-accent">$${totalCost.toFixed(0)}</span></div>
+        <div class="kpi-stat"><span class="kpi-label">Claude 花费</span><span class="kpi-value kpi-accent">${anyCostMasked ? '***' : '$' + totalCost.toFixed(0)}</span></div>
         <div class="kpi-vdiv"></div>
-        <div class="kpi-stat"><span class="kpi-label">Cache 读取</span><span class="kpi-value kpi-purple">${fmtNum(totalCacheR)}</span></div>
+        <div class="kpi-stat"><span class="kpi-label">Cache 读取</span><span class="kpi-value kpi-purple">${anyCostMasked ? '***' : fmtNum(totalCacheR)}</span></div>
         <div class="kpi-vdiv"></div>
-        <div class="kpi-stat"><span class="kpi-label">输出</span><span class="kpi-value kpi-accent">${fmtNum(totalOut)}</span></div>
+        <div class="kpi-stat"><span class="kpi-label">输出</span><span class="kpi-value kpi-accent">${anyCostMasked ? '***' : fmtNum(totalOut)}</span></div>
         <div class="kpi-vdiv"></div>
-        <div class="kpi-stat"><span class="kpi-label">输入</span><span class="kpi-value kpi-muted">${fmtNum(totalIn)}</span></div>
+        <div class="kpi-stat"><span class="kpi-label">输入</span><span class="kpi-value kpi-muted">${anyCostMasked ? '***' : fmtNum(totalIn)}</span></div>
       </div>
     </div>`;
 
@@ -2220,6 +2589,7 @@ function showModalTab(tab) {
   if (tab === 'summary') renderProjectSummary(currentProject);
   if (tab === 'overview') renderProjectOverview(currentProject);
   if (tab === 'design') renderDesignDocs(currentProject);
+  if (tab === 'prompts') renderProjectPrompts(currentProject);
 }
 
 // ─── Tech stack categorization ────────────────────────────────────────────────
@@ -2262,10 +2632,11 @@ function renderProjectSummary(p) {
     return Math.round(diff/86400) + 'd前';
   }
   const caLast = ca && ca.last_session ? _ago(ca.last_session) : '—';
+  const isDown = svc.port && !isRunning;
   const kpiRow = `<div class="sm-kpi-row">
-    <div class="sm-kpi ${isRunning ? 'green' : ''}">
+    <div class="sm-kpi ${isRunning ? 'green' : isDown ? 'red' : ''}">
       <div class="sm-kl">服务状态</div>
-      <div class="sm-kv ${isRunning ? 'green' : ''}">${isRunning ? '运行中' : (svc.port ? '停止' : '无服务')}</div>
+      <div class="sm-kv ${isRunning ? 'green' : isDown ? 'red' : ''}">${isRunning ? '运行中' : (svc.port ? '停止' : '无服务')}</div>
     </div>
     <div class="sm-kpi">
       <div class="sm-kl">本月提交</div>
@@ -2328,10 +2699,10 @@ function renderProjectSummary(p) {
     claudeCard = `<div class="sm-card claude">
       <div class="sm-section-title" style="margin-bottom:10px">Claude</div>
       <div class="sm-cl-grid">
-        <div class="sm-cl-stat"><div class="sm-cl-val">$${(ca.estimated_cost_usd||0).toFixed(1)}</div><div class="sm-cl-lbl">累计花费</div></div>
+        <div class="sm-cl-stat"><div class="sm-cl-val">${ca._masked ? '***' : '$' + (ca.estimated_cost_usd||0).toFixed(1)}</div><div class="sm-cl-lbl">累计花费</div></div>
         <div class="sm-cl-stat"><div class="sm-cl-val">${ca.session_count_30d||0}</div><div class="sm-cl-lbl">30天会话</div></div>
-        <div class="sm-cl-stat"><div class="sm-cl-val">${fmtTok(ca.output_tokens||0)}</div><div class="sm-cl-lbl">输出 Token</div></div>
-        <div class="sm-cl-stat"><div class="sm-cl-val">${fmtTok(ca.cache_read_tokens||0)}</div><div class="sm-cl-lbl">Cache 读</div></div>
+        <div class="sm-cl-stat"><div class="sm-cl-val">${ca._masked ? '***' : fmtTok(ca.output_tokens||0)}</div><div class="sm-cl-lbl">输出 Token</div></div>
+        <div class="sm-cl-stat"><div class="sm-cl-val">${ca._masked ? '***' : fmtTok(ca.cache_read_tokens||0)}</div><div class="sm-cl-lbl">Cache 读</div></div>
       </div>
       <div class="sm-spark">${sparkBars}</div>
       ${todoHtml}
@@ -2436,8 +2807,8 @@ function renderProjectOverview(p) {
     if (p.arch_summary) {
       html += `<div class="arch-text" id="arch-text-${p.id}">${simpleMarkdown(p.arch_summary)}</div>`;
     } else {
-      html += `<div class="arch-text" style="color:#555;display:flex;align-items:center;justify-content:center;">
-        <button onclick="generateSummary('${escHtml(p.id)}')" style="font-size:12px;padding:6px 14px;cursor:pointer;border:1px solid #4a7c59;border-radius:5px;background:#1e3a28;color:#7fc794;">AI 生成总结</button>
+      html += `<div class="arch-text" style="color:var(--text-muted);display:flex;align-items:center;justify-content:center;">
+        <button onclick="generateSummary('${escHtml(p.id)}')" style="font-size:12px;padding:6px 14px;cursor:pointer;border:1px solid var(--green-dim);border-radius:5px;background:rgba(34,197,94,.12);color:var(--green-dim);">AI 生成总结</button>
       </div>`;
     }
     if (techStack.length) {
@@ -2515,7 +2886,7 @@ function renderProjectOverview(p) {
         ${recentCommits.length ? `<div style="margin-top:8px;display:flex;flex-direction:column;gap:3px;">
           ${recentCommits.map(c => {
             const msg = typeof c === 'object' ? (c.message || c.msg || String(c)) : String(c);
-            return `<div style="font-size:11px;color:#555;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(msg)}</div>`;
+            return `<div style="font-size:11px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(msg)}</div>`;
           }).join('')}
         </div>` : ''}
       </div>`;
@@ -2703,7 +3074,7 @@ async function generateSummary(projectId) {
   const btn = document.getElementById(`btn-summarize-${projectId}`);
   if (btn) { btn.disabled = true; btn.textContent = '生成中…'; }
   try {
-    const res = await fetch(`/api/projects/${projectId}/summarize?force=true`, { method: 'POST' });
+    const res = await fetch(`/api/projects/${projectId}/summarize?force=true`, { method: 'POST', headers: _authHeaders() });
     const data = await res.json();
     if (res.ok && data.status === 'ok' && data.project) {
       currentProject = data.project;
@@ -2719,43 +3090,7 @@ async function generateSummary(projectId) {
   }
 }
 
-// ─── Import / Delete ──────────────────────────────────────────────────────────
-function showImportModal() {
-  document.getElementById('import-path-input').value = '';
-  document.getElementById('import-error').textContent = '';
-  const el = document.getElementById('import-overlay');
-  el.style.display = 'flex';
-  setTimeout(() => document.getElementById('import-path-input').focus(), 50);
-}
-function hideImportModal() {
-  document.getElementById('import-overlay').style.display = 'none';
-}
-async function doImport() {
-  const path = document.getElementById('import-path-input').value.trim();
-  const errEl = document.getElementById('import-error');
-  const btn = document.getElementById('import-btn');
-  if (!path) { errEl.textContent = '请输入路径'; return; }
-  btn.disabled = true; btn.textContent = '导入中…';
-  errEl.textContent = '';
-  try {
-    const res = await fetch('/api/projects/import', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({path}),
-    });
-    const data = await res.json();
-    if (res.ok && data.status === 'ok') {
-      hideImportModal();
-      await loadProjects();
-    } else {
-      errEl.textContent = data.detail || '导入失败';
-    }
-  } catch(e) {
-    errEl.textContent = e.message;
-  } finally {
-    btn.disabled = false; btn.textContent = '导入';
-  }
-}
+// ─── Delete ───────────────────────────────────────────────────────────────────
 function initDelete() {
   document.getElementById('delete-confirm-row').style.display = 'flex';
   document.getElementById('delete-init-btn').style.display = 'none';
@@ -2767,7 +3102,7 @@ function cancelDelete() {
 async function confirmDeleteProject() {
   if (!currentProject) return;
   try {
-    const res = await fetch(`/api/projects/${encodeURIComponent(currentProject.id)}`, { method: 'DELETE' });
+    const res = await fetch(`/api/projects/${encodeURIComponent(currentProject.id)}`, { method: 'DELETE', headers: _authHeaders() });
     if (res.ok) {
       closeModal();
       await loadProjects();
@@ -2855,10 +3190,12 @@ function connectStatusWs() {
         const prev = wsStatusPrev[id];
         if (prev === undefined) return;  // newly discovered, skip
         const name = allProjects.find(p => p.id === id)?.name || id;
+        const proj = allProjects.find(p => p.id === id);
+        const loc = proj?.service?.public_domain || (svc.port ? `:${svc.port}` : '?');
         if (!svc.is_running && prev === true) {
-          showToast(`⚠ ${name} 服务已停止 (port ${svc.port || '?'})`);
+          showToast(`⚠ ${name} 服务已停止 (${loc})`);
         } else if (svc.is_running && prev === false) {
-          showToast(`✓ ${name} 服务已恢复 (port ${svc.port})`, true);
+          showToast(`✓ ${name} 服务已恢复 (${loc})`, true);
         }
       });
     }
@@ -2912,12 +3249,126 @@ let chatHistory = [];
 let chatOpen = false;
 let chatAlertsLoaded = false;
 
+let terminalsOpen = false;
+let _terminalsPollTimer = null;
+
+function toggleTerminalsSection() {
+  terminalsOpen = !terminalsOpen;
+  document.getElementById('terminals-body').style.display = terminalsOpen ? '' : 'none';
+  document.getElementById('terminals-toggle-icon').textContent = terminalsOpen ? '▾' : '▸';
+}
+
+async function loadTerminals() {
+  try {
+    const res = await fetch('/api/terminals', { headers: _authHeaders() });
+    if (!res.ok) return;
+    const panes = await res.json();
+    const listEl = document.getElementById('terminals-pane-list');
+    const countEl = document.getElementById('terminals-count');
+    const waitingBadge = document.getElementById('terminals-waiting-badge');
+    const section = document.getElementById('chat-terminals');
+    if (!listEl) return;
+
+    section.style.display = '';
+    countEl.textContent = panes.length;
+    const waitingCount = panes.filter(p => p.waiting).length;
+    if (waitingCount > 0) {
+      waitingBadge.style.display = '';
+      waitingBadge.textContent = `${waitingCount} 等待`;
+    } else {
+      waitingBadge.style.display = 'none';
+    }
+
+    listEl.innerHTML = panes.map(p => `
+      <div class="chat-pane-row" title="${escHtml(p.target)}">
+        <span class="chat-pane-dot ${p.waiting ? 'waiting' : 'running'}"></span>
+        <span class="chat-pane-label">${escHtml(p.label)}</span>
+        <span class="chat-pane-target">${escHtml(p.target)}</span>
+      </div>`).join('');
+  } catch(_) {}
+}
+
+async function loadTerminalAlerts() {
+  try {
+    const res = await fetch('/api/terminals/alerts', { headers: _authHeaders() });
+    if (!res.ok) return;
+    const alerts = await res.json();
+    const container = document.getElementById('terminals-alerts-container');
+    if (!alerts.length || !container) return;
+
+    alerts.forEach(alert => {
+      const el = document.createElement('div');
+      el.className = 'chat-terminal-alert';
+      el.innerHTML = `
+        <div class="chat-terminal-alert-meta">⚠ ${escHtml(alert.label)} · ${escHtml(alert.target)}</div>
+        <div class="chat-terminal-alert-snippet">${escHtml(alert.snippet)}</div>
+        <div class="chat-terminal-alert-btns">
+          <button class="chat-alert-btn allow" onclick="quickSend('${escHtml(alert.target)}','y\\n',this.closest('.chat-terminal-alert'))">✓ Allow</button>
+          <button class="chat-alert-btn deny"  onclick="quickSend('${escHtml(alert.target)}','n\\n',this.closest('.chat-terminal-alert'))">✗ Deny</button>
+          <button class="chat-alert-btn custom" onclick="customSend('${escHtml(alert.target)}',this.closest('.chat-terminal-alert'))">自定义</button>
+        </div>`;
+      container.appendChild(el);
+    });
+
+    const badge = document.getElementById('anomaly-badge');
+    if (badge) {
+      badge.textContent = alerts.length;
+      badge.classList.add('visible');
+    }
+  } catch(_) {}
+}
+
+async function quickSend(target, keys, alertEl) {
+  try {
+    await fetch(`/api/terminals/${encodeURIComponent(target)}/send`,
+      { method: 'POST', headers: _authHeaders({'Content-Type': 'application/json'}),
+        body: JSON.stringify({keys}) });
+    alertEl?.remove();
+    await loadTerminals();
+  } catch(e) {
+    showToast('发送失败：' + e.message);
+  }
+}
+
+async function customSend(target, alertEl) {
+  const keys = prompt(`发送到 ${target}：`);
+  if (keys === null) return;
+  await quickSend(target, keys + '\n', alertEl);
+}
+
+async function registerPane() {
+  const input = document.getElementById('terminals-register-input');
+  const target = input.value.trim();
+  if (!target) return;
+  try {
+    await fetch('/api/terminals/register',
+      { method: 'POST', headers: _authHeaders({'Content-Type': 'application/json'}),
+        body: JSON.stringify({target, label: target}) });
+    input.value = '';
+    await loadTerminals();
+  } catch(e) {
+    showToast('注册失败：' + e.message);
+  }
+}
+
+function _startTerminalsPoll() {
+  if (_terminalsPollTimer) return;
+  _terminalsPollTimer = setInterval(async () => {
+    await loadTerminals();
+    await loadTerminalAlerts();
+  }, 5000);
+}
+
 function toggleChat() {
+  if (!_isAdmin) { openLoginModal(toggleChat); return; }
   chatOpen = !chatOpen;
   document.getElementById('chat-panel').classList.toggle('open', chatOpen);
-  document.getElementById('chat-fab').style.display = chatOpen ? 'none' : '';
+  document.getElementById('chat-fab').classList.toggle('panel-open', chatOpen);
   if (chatOpen) {
     if (!chatAlertsLoaded) { chatAlertsLoaded = true; _loadAlerts(); }
+    loadTerminals();
+    loadTerminalAlerts();
+    _startTerminalsPoll();
     setTimeout(() => document.getElementById('chat-input').focus(), 260);
   }
 }
@@ -2970,7 +3421,7 @@ async function sendChat() {
   try {
     const resp = await fetch('/api/chat', {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
+      headers: _authHeaders({'Content-Type': 'application/json'}),
       body: JSON.stringify({message: text, history: chatHistory}),
     });
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
@@ -3073,18 +3524,384 @@ document.addEventListener('click', e => {
 // Restore saved skin on load
 applySkin(localStorage.getItem('mira-skin') || 'default');
 
+// ─── Settings ─────────────────────────────────────────────────────────────────
+async function openSettings() {
+  if (!_isAdmin) { openLoginModal(openSettings); return; }
+  const data = await fetch('/api/settings', {headers: _authHeaders()}).then(r => r.json());
+  document.getElementById('set-openrouter').placeholder = data.openrouter_api_key || 'sk-or-...';
+  document.getElementById('set-deepseek').placeholder   = data.deepseek_api_key   || 'sk-...';
+  document.getElementById('set-kimi').placeholder       = data.kimi_api_key        || 'sk-...';
+  document.getElementById('set-openrouter').value      = '';
+  document.getElementById('set-deepseek').value        = '';
+  document.getElementById('set-kimi').value            = '';
+  document.getElementById('set-admin-password').value  = '';
+  document.getElementById('set-admin-password').placeholder = data.admin_password ? '留空则不修改' : '未设置';
+  const logoutBtn = document.getElementById('settings-logout-btn');
+  if (logoutBtn) logoutBtn.style.display = (_isAdmin && _adminToken) ? '' : 'none';
+  document.getElementById('settings-overlay').classList.add('open');
+}
+
+function closeSettings() {
+  document.getElementById('settings-overlay').classList.remove('open');
+}
+
+async function saveSettings() {
+  const body = {
+    openrouter_api_key: document.getElementById('set-openrouter').value.trim(),
+    deepseek_api_key:   document.getElementById('set-deepseek').value.trim(),
+    kimi_api_key:       document.getElementById('set-kimi').value.trim(),
+    admin_password:     document.getElementById('set-admin-password').value.trim(),
+  };
+  await fetch('/api/settings', { method: 'POST', headers: _authHeaders({'Content-Type':'application/json'}), body: JSON.stringify(body) });
+  // If admin password changed, invalidate stored token (need re-login)
+  if (body.admin_password) {
+    _adminToken = ''; _isAdmin = false;
+    localStorage.removeItem('mira-admin-token');
+  }
+  closeSettings();
+  loadBalance(true);
+}
+
+// ─── API Balance ──────────────────────────────────────────────────────────────
+async function loadBalance(force = false) {
+  const row = document.getElementById('balance-row');
+  const qs = force ? '?force=true' : '';
+  try {
+    const [balRes, actRes] = await Promise.all([
+      fetch('/api/balance' + qs, {headers: _authHeaders()}),
+      fetch('/api/balance/activity' + qs, {headers: _authHeaders()}),
+    ]);
+    const { providers } = await balRes.json();
+    const actPayload = await actRes.json();
+    const actData = actPayload.openrouter || null;
+    const actMasked = !!actPayload._masked;
+
+    if (!providers.length) { row.style.display = 'none'; return; }
+    row.style.display = 'grid';
+    row.innerHTML = providers.map(p =>
+      renderBalanceCard(p, p.id === 'openrouter' ? {data: actData, masked: actMasked} : null)
+    ).join('');
+  } catch(_) { row.style.display = 'none'; }
+}
+
+function renderActivityChart(title, data, unit, masked = false) {
+  // Fill last 30 days (with zero for missing days)
+  const today = new Date();
+  const days = [];
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    days.push(d.toISOString().slice(0, 10));
+  }
+  const byDay = {};
+  data.forEach(r => { byDay[r.date] = r.cost_usd; });
+  const values = days.map(d => byDay[d] || 0);
+  const maxVal = Math.max(...values, 0.001);
+  const total = values.reduce((a, b) => a + b, 0);
+
+  const bars = days.map((d, i) => {
+    const v = values[i];
+    const h = v === 0 ? 2 : Math.max(4, Math.round((v / maxVal) * 46));
+    const cls = v === 0 ? 'zero' : '';
+    const tip = masked ? d : `${d}: ${unit}${v.toFixed(4)}`;
+    return `<span class="activity-bar ${cls}" style="height:${h}px" title="${tip}"></span>`;
+  }).join('');
+
+  // Show first, middle, last date label
+  const lbl0 = days[0].slice(5);
+  const lbl14 = days[14].slice(5);
+  const lbl29 = days[29].slice(5);
+  const totalDisplay = masked ? `${unit}***` : `${unit}${total.toFixed(2)}`;
+
+  return `<div class="activity-chart-wrap">
+    <div class="activity-chart-header">
+      <span class="activity-chart-title">${title}</span>
+      <span class="activity-chart-total">30天合计 ${totalDisplay}</span>
+    </div>
+    <div class="activity-bars">${bars}</div>
+    <div class="activity-date-row">
+      <span class="activity-date-lbl">${lbl0}</span>
+      <span class="activity-date-lbl">${lbl14}</span>
+      <span class="activity-date-lbl">${lbl29}</span>
+    </div>
+  </div>`;
+}
+
+function renderBalanceCard(p, activity = null) {
+  if (p.error) {
+    return `<div class="balance-card error">
+      <div class="balance-logo">${escHtml(p.name)}</div>
+      <div class="balance-divider"></div>
+      <div class="balance-stat"><div class="balance-val empty">ERR</div><div class="balance-lbl">获取失败</div></div>
+    </div>`;
+  }
+
+  const fmtMoney = (v, unit) => p._masked ? '***' : (v == null ? '—' : `${unit}${parseFloat(v).toFixed(2)}`);
+  const u = p.unit || '$';
+  let stats = '';
+
+  if (p._masked) {
+    // Non-admin: only show 余额 and 已消耗
+    stats += `<div class="balance-stat"><div class="balance-val">***</div><div class="balance-lbl">余额</div></div>`;
+    stats += `<div class="balance-divider"></div>`;
+    stats += `<div class="balance-stat"><div class="balance-val">***</div><div class="balance-lbl">已消耗</div></div>`;
+  } else {
+    if (p.balance != null) {
+      const cls = p.balance < 1 ? 'empty' : p.balance < 5 ? 'low' : '';
+      stats += `<div class="balance-stat"><div class="balance-val ${cls}">${fmtMoney(p.balance, u)}</div><div class="balance-lbl">余额</div></div>`;
+    }
+    if (p.topped != null) {
+      stats += `<div class="balance-divider"></div>`;
+      stats += `<div class="balance-stat"><div class="balance-val">${fmtMoney(p.topped, u)}</div><div class="balance-lbl">充值余额</div></div>`;
+    }
+    if (p.granted != null) {
+      stats += `<div class="balance-divider"></div>`;
+      stats += `<div class="balance-stat"><div class="balance-val">${fmtMoney(p.granted, u)}</div><div class="balance-lbl">赠送余额</div></div>`;
+    }
+    if (p.used != null) {
+      stats += `<div class="balance-divider"></div>`;
+      stats += `<div class="balance-stat"><div class="balance-val">${fmtMoney(p.used, u)}</div><div class="balance-lbl">已消耗</div></div>`;
+    }
+    if (p.limit != null) {
+      stats += `<div class="balance-divider"></div>`;
+      stats += `<div class="balance-stat"><div class="balance-val">${fmtMoney(p.limit, u)}</div><div class="balance-lbl">额度上限</div></div>`;
+    }
+  }
+
+  // Mini trend chart (always shown for layout consistency)
+  let bars = '', totalStr = '';
+  if (activity && activity.data && activity.data.length) {
+    const masked = activity.masked;
+    const today = new Date();
+    const days = Array.from({length: 30}, (_, i) => {
+      const d = new Date(today); d.setDate(d.getDate() - (29 - i));
+      return d.toISOString().slice(0, 10);
+    });
+    const byDay = {};
+    activity.data.forEach(r => { byDay[r.date] = r.cost_usd; });
+    const values = days.map(d => byDay[d] || 0);
+    const maxVal = Math.max(...values, 0.001);
+    const total = values.reduce((a, b) => a + b, 0);
+    bars = values.map((v, i) => {
+      const h = v === 0 ? 2 : Math.max(3, Math.round((v / maxVal) * 32));
+      const tip = masked ? days[i] : `${days[i]}: $${v.toFixed(4)}`;
+      return `<span style="flex:1;min-width:0;height:${h}px;background:${v===0?'var(--border)':'var(--accent)'};border-radius:1px" title="${tip}"></span>`;
+    }).join('');
+    totalStr = masked ? '$***' : `$${total.toFixed(2)}`;
+  } else {
+    bars = Array(30).fill(`<span style="flex:1;min-width:0;height:2px;background:var(--border);border-radius:1px"></span>`).join('');
+    totalStr = '—';
+  }
+
+  const sparkHtml = `
+    <div style="border-top:1px solid var(--border);margin-top:8px;padding-top:8px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <span style="font-size:9px;color:var(--text-muted);letter-spacing:.5px;text-transform:uppercase">30天消耗</span>
+        <span style="font-size:11px;font-weight:700;color:var(--text-sec)">${totalStr}</span>
+      </div>
+      <div style="display:flex;align-items:flex-end;gap:1px;height:34px">${bars}</div>
+    </div>`;
+
+  return `<div class="balance-card" style="flex-direction:column;align-items:stretch">
+    <div style="display:flex;align-items:center;gap:12px">
+      <div class="balance-logo">${escHtml(p.name)}</div>
+      <div class="balance-divider"></div>
+      ${stats || `<div class="balance-stat"><div class="balance-val">—</div><div class="balance-lbl">暂无数据</div></div>`}
+    </div>
+    ${sparkHtml}
+  </div>`;
+}
+
+// ─── Prompts (modal tab) ───────────────────────────────────────────────────────
+let _promptsData = null;   // [{id, name, prompts:[{date,text}]}]
+
+// Pre-fetch prompts on page load so modal tab is instant
+fetch('/api/prompts').then(r => r.json()).then(d => { _promptsData = d.projects || []; }).catch(() => {});
+
+// ── Modal: Prompts tab ────────────────────────────────────────────────────────
+function renderProjectPrompts(project) {
+  const el = document.getElementById('mcontent-prompts');
+  if (!_promptsData) {
+    el.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:16px">加载中…</div>';
+    fetch('/api/prompts').then(r => r.json()).then(d => {
+      _promptsData = d.projects || [];
+      renderProjectPrompts(project);
+    });
+    return;
+  }
+
+  // Match project to prompts bucket
+  const haystack = ((project.id || '') + ' ' + (project.name || '')).toLowerCase().replace(/-/g, '');
+  const proj = _promptsData.find(p => haystack.includes(p.id.replace(/-/g, '')));
+
+  if (!proj || !proj.prompts.length) {
+    el.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:16px">暂无 prompt 记录</div>';
+    return;
+  }
+
+  let searchQ = '';
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      <input id="mprompt-search" type="text" placeholder="搜索 prompt…"
+        style="flex:1;background:var(--card-deep);border:1px solid var(--border);border-radius:6px;
+               padding:5px 10px;color:var(--text);font-size:12px;outline:none">
+      <span id="mprompt-count" style="font-size:11px;color:var(--text-muted);white-space:nowrap"></span>
+    </div>
+    <div id="mprompt-list" style="display:flex;flex-direction:column;gap:6px;max-height:400px;overflow-y:auto"></div>`;
+
+  const searchEl = el.querySelector('#mprompt-search');
+  searchEl.addEventListener('input', () => _renderModalList(proj.prompts, searchEl.value.trim().toLowerCase()));
+  _renderModalList(proj.prompts, '');
+}
+
+function _renderModalList(prompts, q) {
+  const list = document.getElementById('mprompt-list');
+  const count = document.getElementById('mprompt-count');
+  if (!list) return;
+  const filtered = q ? prompts.filter(e => e.text.toLowerCase().includes(q)) : prompts;
+  if (count) count.textContent = `${filtered.length} 条`;
+  if (!filtered.length) {
+    list.innerHTML = '<div style="color:var(--text-muted);font-size:12px;padding:12px">无匹配</div>';
+    return;
+  }
+  list.innerHTML = filtered.map(entry => {
+    let text = escHtml(entry.text);
+    if (q) {
+      const re = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+      text = text.replace(re, m => `<mark>${m}</mark>`);
+    }
+    return `<div style="background:var(--card-deep);border:1px solid var(--border);border-radius:6px;
+                         padding:10px 12px;font-size:12px;line-height:1.6">
+      <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">${escHtml(entry.date)}</div>
+      <div style="white-space:pre-wrap;word-break:break-word;color:var(--text)">${text}</div>
+    </div>`;
+  }).join('');
+}
+
 // ─── Init ─────────────────────────────────────────────────────────────────────
-loadProjects();
-loadInfraServices();
-connectStatusWs();
+_initAuth().then(() => {
+  loadProjects();
+  loadInfraServices();
+  connectStatusWs();
+  loadBalance();
+});
+
+// ── History Search ────────────────────────────────────────────────────────
+let _searchTimer = null;
+
+function toggleSearch() {
+  const overlay = document.getElementById('search-overlay');
+  if (overlay.classList.contains('hidden')) {
+    overlay.classList.remove('hidden');
+    document.getElementById('search-input').focus();
+  } else {
+    _closeSearch();
+  }
+}
+
+function _closeSearch() {
+  const overlay = document.getElementById('search-overlay');
+  overlay.classList.add('hidden');
+  document.getElementById('search-input').value = '';
+  document.getElementById('search-results').innerHTML = '';
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    const overlay = document.getElementById('search-overlay');
+    if (overlay && !overlay.classList.contains('hidden')) _closeSearch();
+  }
+});
+
+document.addEventListener('click', e => {
+  const overlay = document.getElementById('search-overlay');
+  const btn = document.getElementById('search-btn');
+  if (overlay && !overlay.classList.contains('hidden') &&
+      !overlay.contains(e.target) && e.target !== btn) {
+    _closeSearch();
+  }
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+  const input = document.getElementById('search-input');
+  if (!input) return;
+  input.addEventListener('input', () => {
+    clearTimeout(_searchTimer);
+    _searchTimer = setTimeout(() => _doSearch(input.value.trim()), 300);
+  });
+});
+
+function _escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+async function _doSearch(q) {
+  const container = document.getElementById('search-results');
+  if (!q) { container.innerHTML = ''; return; }
+  container.innerHTML = '<div class="search-empty">搜索中…</div>';
+  try {
+    const res = await fetch(`/api/history/search?q=${encodeURIComponent(q)}&limit=20`,
+      { headers: _authHeaders() });
+    if (!res.ok) { container.innerHTML = '<div class="search-empty">搜索失败</div>'; return; }
+    const items = await res.json();
+    if (!items.length) {
+      container.innerHTML = '<div class="search-empty">未找到相关记录</div>';
+      return;
+    }
+    container.innerHTML = items.map(item => {
+      const date = item.last_ts ? new Date(item.last_ts).toLocaleDateString('zh-CN') : '';
+      return `<div class="search-result-item" onclick="location.href='/projects/${encodeURIComponent(item.project_id)}'">
+        <div class="search-result-meta">${_escHtml(item.project_name || item.project_id)} · ${date}</div>
+        <div class="search-result-snippet">${_escHtml(item.snippet || '').replace(/&lt;mark&gt;/g,'<mark>').replace(/&lt;\/mark&gt;/g,'</mark>')}</div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    container.innerHTML = '<div class="search-empty">搜索出错</div>';
+  }
+}
 </script>
+<!-- ── Login Modal ────────────────────────────── -->
+<div id="login-overlay" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.7);align-items:center;justify-content:center;" onclick="if(event.target===this)closeLoginModal()">
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:32px 28px;width:320px;text-align:center">
+    <div style="font-size:20px;font-weight:700;color:var(--text);margin-bottom:6px">🔒 管理员登录</div>
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:20px">此操作需要管理员权限</div>
+    <input id="login-password" type="password" placeholder="输入密码" autocomplete="current-password"
+      style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:14px;outline:none;margin-bottom:10px;box-sizing:border-box"
+      onkeydown="if(event.key==='Enter')doLogin()">
+    <div id="login-error" style="color:var(--red);font-size:12px;margin-bottom:10px;display:none">密码错误，请重试</div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button onclick="closeLoginModal()" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px">取消</button>
+      <button onclick="doLogin()" style="background:var(--accent);border:none;color:#fff;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600">登录</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── Chat Agent ──────────────────────────────── -->
-<button class="chat-fab" id="chat-fab" onclick="toggleChat()" aria-label="打开 Mira 对话">⌘<span id="anomaly-badge"></span></button>
 
 <div class="chat-panel" id="chat-panel" role="dialog" aria-label="Mira 对话" aria-modal="true">
   <div class="chat-header">
     <span class="chat-header-title">✦ Mira</span>
-    <button class="chat-close" onclick="toggleChat()" aria-label="关闭">×</button>
+  </div>
+  <!-- 终端监控区 -->
+  <div class="chat-terminals" id="chat-terminals" style="display:none">
+    <div class="chat-terminals-header" onclick="toggleTerminalsSection()">
+      <span id="terminals-toggle-icon">▸</span>
+      <span>终端</span>
+      <span id="terminals-count" style="background:rgba(255,255,255,.08);border-radius:10px;padding:0 6px"></span>
+      <span id="terminals-waiting-badge" style="display:none;background:var(--orange);color:#000;border-radius:10px;padding:0 6px;font-weight:700"></span>
+    </div>
+    <div id="terminals-body" style="display:none">
+      <div class="chat-terminals-body">
+        <div id="terminals-pane-list"></div>
+        <div class="chat-register-row">
+          <input class="chat-register-input" id="terminals-register-input"
+                 placeholder="work:0.2  注册 pane target…"
+                 onkeydown="if(event.key==='Enter') registerPane()">
+          <button class="chat-register-btn" onclick="registerPane()">+ 注册</button>
+        </div>
+      </div>
+    </div>
+    <div id="terminals-alerts-container"></div>
   </div>
   <div class="chat-messages" id="chat-messages"></div>
   <div class="chat-input-row">
