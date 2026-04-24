@@ -81,7 +81,11 @@ def render_dev_page() -> str:
   .term-empty code { color: var(--sub); font-size: 11px; }
   .term-inputbar {
     padding: 8px 12px; border-top: 1px solid var(--border);
-    display: flex; gap: 8px; flex-shrink: 0; background: var(--panel);
+    display: flex; flex-direction: column; gap: 0;
+    flex-shrink: 0; background: var(--panel);
+  }
+  .term-input-row {
+    display: flex; gap: 8px;
   }
   .term-input {
     flex: 1; background: rgba(255,255,255,.04); border: 1px solid var(--border);
@@ -98,6 +102,9 @@ def render_dev_page() -> str:
   .term-send-btn:hover { opacity: .85; }
   .term-send-btn:disabled { opacity: .4; cursor: not-allowed; }
 
+  /* quick keys — hidden on desktop */
+  .term-quickkeys { display: none; }
+
   /* ── Mobile: master-detail (≤ 900px) ── */
   @media (max-width: 900px) {
     .topbar { padding: 0 14px; gap: 8px; height: 48px; }
@@ -107,7 +114,7 @@ def render_dev_page() -> str:
     .topbar-logo .logo-cursor { font-size: 16px; }
     .topbar-page-title { display: none; }
     .topbar-sep { display: none; }
-    .dev-page { height: calc(100vh - 48px); }
+    .dev-page { height: calc(100dvh - 48px); }
 
     .term-sidebar { width: 100%; flex: 1; border-right: none; }
     .term-sidebar-header { padding: 14px 16px 10px; font-size: 11px; letter-spacing: .5px; text-transform: none; font-weight: 700; }
@@ -139,11 +146,60 @@ def render_dev_page() -> str:
     .dev-page.detail-open .term-main { display: flex; flex: 1; }
     .term-back-btn { display: inline-flex; align-items: center; }
 
-    .term-output { font-size: 11px; padding: 8px 12px; }
-    .term-input { font-size: 14px; padding: 8px 10px; }
-    .term-send-btn { padding: 8px 16px; font-size: 13px; }
-    .term-inputbar { padding: 8px 10px; }
-    .term-qbtn { padding: 4px 10px; }
+    /* titlebar quick buttons hidden on mobile — moved to quick-keys row */
+    .term-quickbtns { display: none; }
+
+    /* output area — bottom padding set by JS to avoid inputbar overlap */
+    .term-output { font-size: 11px; padding: 8px 12px 8px; }
+
+    /* ── Fixed input bar above keyboard ── */
+    .dev-page.detail-open .term-inputbar {
+      position: fixed;
+      left: 0; right: 0; bottom: 0;
+      z-index: 40;
+      padding: 0 0 max(8px, env(safe-area-inset-bottom, 8px));
+      flex-direction: column;
+      gap: 0;
+    }
+
+    /* ── Quick keys row ── */
+    .term-quickkeys {
+      display: flex;
+      gap: 6px;
+      padding: 8px 10px 6px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+    }
+    .term-quickkeys::-webkit-scrollbar { display: none; }
+    .term-qkey {
+      flex-shrink: 0;
+      background: rgba(255,255,255,.06);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 12px;
+      padding: 6px 14px;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      transition: background .1s, border-color .1s;
+      line-height: 1.2;
+    }
+    .term-qkey:active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+    /* input row inside inputbar */
+    .term-input-row {
+      display: flex;
+      gap: 8px;
+      padding: 6px 10px 0;
+    }
+    .term-input {
+      font-size: 16px; /* prevent iOS zoom */
+      padding: 10px 12px;
+    }
+    .term-send-btn { padding: 10px 20px; font-size: 14px; }
   }
 """
 
@@ -207,6 +263,14 @@ function selectPane(target, cmd) {
   document.getElementById('dev-page').classList.add('detail-open');
   stopPoll();
   startPoll();
+  // mobile: update bar position then focus input
+  setTimeout(() => {
+    _updateInputBarPos();
+    if (_isMobile()) {
+      const inp = document.getElementById('term-input');
+      if (inp && !inp.disabled) inp.focus();
+    }
+  }, 50);
 }
 
 function goBackToList() {
@@ -271,6 +335,8 @@ function sendKeys() {
     headers: _authHeaders({'Content-Type': 'application/json'}),
     body: JSON.stringify({keys: keys + '\n'})
   }).catch(() => {});
+  // keep keyboard open on mobile
+  if (_isMobile()) inp.focus();
 }
 function sendRaw(keys) {
   if (!_currentTarget) return;
@@ -283,12 +349,61 @@ function sendRaw(keys) {
 document.getElementById('btn-ctrlc').addEventListener('click', () => sendRaw('C-c'));
 document.getElementById('btn-enter').addEventListener('click', () => sendRaw('\n'));
 
+// ── Quick keys (mobile) ───────────────────────────────────────────────────────
+document.querySelectorAll('.term-qkey').forEach(btn => {
+  btn.addEventListener('click', function(e) {
+    e.preventDefault();
+    const raw = this.dataset.raw;
+    // tmux special keys need the raw string; tab is '\t'
+    if (raw === '\t') {
+      sendRaw('\t');
+    } else {
+      sendRaw(raw);
+    }
+    // keep focus on input after quick key
+    const inp = document.getElementById('term-input');
+    if (inp && !inp.disabled) inp.focus();
+  });
+});
+
+// ── Mobile: fix inputbar above keyboard ──────────────────────────────────────
+function _isMobile() { return window.innerWidth <= 900; }
+
+function _updateInputBarPos() {
+  if (!_isMobile()) return;
+  const bar = document.querySelector('.term-inputbar');
+  const out = document.getElementById('term-output');
+  if (!bar || !out) return;
+
+  if (window.visualViewport) {
+    const vvTop    = window.visualViewport.offsetTop;
+    const vvHeight = window.visualViewport.height;
+    const pageH    = document.documentElement.scrollHeight;
+    // distance from bottom of visualViewport to bottom of page
+    const fromBottom = pageH - (vvTop + vvHeight);
+    bar.style.transform = fromBottom > 10
+      ? `translateY(-${window.innerHeight - vvHeight - vvTop}px)`
+      : '';
+  }
+
+  // keep output from going under the fixed bar
+  const barH = bar.offsetHeight;
+  out.style.paddingBottom = barH + 8 + 'px';
+}
+
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', _updateInputBarPos);
+  window.visualViewport.addEventListener('scroll', _updateInputBarPos);
+}
+window.addEventListener('resize', _updateInputBarPos);
+
 // ── Init ──────────────────────────────────────────────────────────────────────
 async function init() {
   await _initAuth();
   if (!_isAdmin) { openLoginModal(init); return; }
   await loadPanes();
   setInterval(loadPanes, 5000);
+  _updateInputBarPos();
 }
 init();
 """
@@ -339,9 +454,23 @@ init();
       </div>
     </div>
     <div class="term-inputbar">
-      <input class="term-input" id="term-input" placeholder="发送按键…" disabled
-             onkeydown="if(event.key==='Enter')sendKeys()">
-      <button class="term-send-btn" id="term-send-btn" onclick="sendKeys()" disabled>发送</button>
+      <div class="term-quickkeys">
+        <button class="term-qkey" data-raw="	">Tab</button>
+        <button class="term-qkey" data-raw="Escape">Esc</button>
+        <button class="term-qkey" data-raw="Up">↑</button>
+        <button class="term-qkey" data-raw="Down">↓</button>
+        <button class="term-qkey" data-raw="C-c">^C</button>
+        <button class="term-qkey" data-raw="C-d">^D</button>
+        <button class="term-qkey" data-raw="C-l">^L</button>
+        <button class="term-qkey" data-raw="C-a">^A</button>
+        <button class="term-qkey" data-raw="C-e">^E</button>
+      </div>
+      <div class="term-input-row">
+        <input class="term-input" id="term-input" placeholder="发送按键…" disabled
+               autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+               onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendKeys();}">
+        <button class="term-send-btn" id="term-send-btn" onclick="sendKeys()" disabled>发送</button>
+      </div>
     </div>
   </div>
 </div>
