@@ -67,12 +67,60 @@ def render_dev_page() -> str:
     border-radius: var(--radius-sm); cursor: pointer; font-family: var(--mono); transition: all .12s;
   }
   .term-qbtn:hover { border-color: var(--accent); color: var(--accent); }
-  .term-output {
-    flex: 1; padding: 12px 16px; font-family: var(--mono);
-    font-size: 12px; line-height: 1.6; overflow-y: auto;
-    white-space: pre-wrap; word-break: break-all; color: var(--text);
-    background: var(--bg);
+  /* ── ANSI 16-color palette: references theme vars wherever possible ── */
+  :root {
+    --ansi-k: #3a3f4b;          /* black  */
+    --ansi-r: var(--red);       /* red    */
+    --ansi-g: var(--green);     /* green  */
+    --ansi-y: var(--yellow);    /* yellow */
+    --ansi-b: #4e9eff;          /* blue   */
+    --ansi-m: #c792ea;          /* magenta */
+    --ansi-c: #56b6c2;          /* cyan   */
+    --ansi-w: var(--text);      /* white  */
+    --ansi-K: var(--muted);     /* bright black  */
+    --ansi-R: var(--red);       /* bright red    */
+    --ansi-G: var(--green);     /* bright green  */
+    --ansi-Y: var(--orange);    /* bright yellow */
+    --ansi-B: #82aaff;          /* bright blue   */
+    --ansi-M: #d9a0f5;          /* bright magenta */
+    --ansi-C: #89ddff;          /* bright cyan   */
+    --ansi-W: #ffffff;          /* bright white  */
   }
+
+  /* ── Terminal output (editor layout) ── */
+  .term-output {
+    flex: 1; overflow-y: auto;
+    font-family: var(--mono); font-size: 12px;
+    background: var(--bg); color: var(--text);
+    /* white-space/word-break handled per-line in .out-code */
+  }
+  .out-line {
+    display: flex; align-items: baseline;
+    min-height: 1.6em; line-height: 1.6;
+    transition: background .08s;
+  }
+  .out-line:hover { background: rgba(255,255,255,.028); }
+  .out-ln {
+    flex-shrink: 0;
+    width: 3.2em;
+    padding: 0 .6em 0 .5em;
+    text-align: right;
+    color: var(--muted);
+    font-size: .82em;
+    user-select: none;
+    border-right: 1px solid var(--border);
+    line-height: 1.6;
+    white-space: pre;
+    opacity: .7;
+  }
+  .out-code {
+    flex: 1; min-width: 0;
+    padding: 0 14px;
+    white-space: pre-wrap;
+    word-break: break-all;
+    line-height: 1.6;
+  }
+
   .term-empty {
     height: 100%; display: flex; flex-direction: column;
     align-items: center; justify-content: center;
@@ -155,7 +203,9 @@ def render_dev_page() -> str:
     .term-quickbtns { display: none; }
 
     /* output area — bottom padding set by JS to avoid inputbar overlap */
-    .term-output { font-size: 11px; padding: 8px 12px 8px; }
+    .term-output { font-size: 11px; }
+    .out-ln { width: 2.6em; font-size: .78em; padding: 0 .4em 0 .3em; }
+    .out-code { padding: 0 10px; }
 
     /* ── Fixed input bar above keyboard ── */
     .dev-page.detail-open .term-inputbar {
@@ -214,6 +264,107 @@ def render_dev_page() -> str:
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── ANSI renderer ─────────────────────────────────────────────────────────────
+const _FG = {
+  30:'var(--ansi-k)', 31:'var(--ansi-r)', 32:'var(--ansi-g)', 33:'var(--ansi-y)',
+  34:'var(--ansi-b)', 35:'var(--ansi-m)', 36:'var(--ansi-c)', 37:'var(--ansi-w)',
+  90:'var(--ansi-K)', 91:'var(--ansi-R)', 92:'var(--ansi-G)', 93:'var(--ansi-Y)',
+  94:'var(--ansi-B)', 95:'var(--ansi-M)', 96:'var(--ansi-C)', 97:'var(--ansi-W)',
+};
+const _BG = {
+  40:'var(--ansi-k)', 41:'var(--ansi-r)', 42:'var(--ansi-g)', 43:'var(--ansi-y)',
+  44:'var(--ansi-b)', 45:'var(--ansi-m)', 46:'var(--ansi-c)', 47:'var(--ansi-w)',
+  100:'var(--ansi-K)', 101:'var(--ansi-R)', 102:'var(--ansi-G)', 103:'var(--ansi-Y)',
+  104:'var(--ansi-B)', 105:'var(--ansi-M)', 106:'var(--ansi-C)', 107:'var(--ansi-W)',
+};
+
+function _256color(n) {
+  if (n < 8)   return _FG[n + 30];
+  if (n < 16)  return _FG[n + 82];  // bright: 90-97
+  if (n < 232) {
+    n -= 16;
+    const b = n % 6, g = Math.floor(n / 6) % 6, r = Math.floor(n / 36);
+    const c = v => v ? v * 40 + 55 : 0;
+    return 'rgb(' + c(r) + ',' + c(g) + ',' + c(b) + ')';
+  }
+  const v = Math.round((n - 232) * 10.2 + 8);
+  return 'rgb(' + v + ',' + v + ',' + v + ')';
+}
+
+// Convert one line of terminal output (may contain ANSI escapes) → safe HTML.
+function _ansiLine(line) {
+  const RE = /\x1b\[([0-9;]*)([A-Za-z])/g;
+  let out = '', last = 0, spanOpen = false;
+  let fg = null, bg = null, bold = false, dim = false, ital = false, ul = false;
+
+  function _hasStyle() { return fg || bg || bold || dim || ital || ul; }
+  function _close() { if (spanOpen) { out += '</span>'; spanOpen = false; } }
+  function _open() {
+    if (spanOpen || !_hasStyle()) return;
+    const s = [];
+    if (fg)   s.push('color:' + fg);
+    if (bg)   s.push('background:' + bg);
+    if (bold) s.push('font-weight:700');
+    if (dim)  s.push('opacity:.55');
+    if (ital) s.push('font-style:italic');
+    if (ul)   s.push('text-decoration:underline');
+    out += '<span style="' + s.join(';') + '">';
+    spanOpen = true;
+  }
+
+  let m;
+  while ((m = RE.exec(line)) !== null) {
+    if (m.index > last) { _open(); out += escHtml(line.slice(last, m.index)); }
+    last = RE.lastIndex;
+    if (m[2] !== 'm') continue;  // only handle SGR
+    _close();
+    const ps = m[1] ? m[1].split(';') : ['0'];
+    let i = 0;
+    while (i < ps.length) {
+      const p = +ps[i] || 0;
+      if (p === 0)  { fg = bg = null; bold = dim = ital = ul = false; }
+      else if (p === 1)  bold = true;
+      else if (p === 2)  dim  = true;
+      else if (p === 3)  ital = true;
+      else if (p === 4)  ul   = true;
+      else if (p === 22) { bold = false; dim = false; }
+      else if (p === 23) ital = false;
+      else if (p === 24) ul   = false;
+      else if (_FG[p])   fg   = _FG[p];
+      else if (p === 38) {
+        if (ps[i+1] === '5')            { fg = _256color(+ps[i+2]); i += 2; }
+        else if (ps[i+1] === '2')       { fg = 'rgb('+ps[i+2]+','+ps[i+3]+','+ps[i+4]+')'; i += 4; }
+      }
+      else if (p === 39) fg = null;
+      else if (_BG[p])   bg = _BG[p];
+      else if (p === 48) {
+        if (ps[i+1] === '5')            { bg = _256color(+ps[i+2]); i += 2; }
+        else if (ps[i+1] === '2')       { bg = 'rgb('+ps[i+2]+','+ps[i+3]+','+ps[i+4]+')'; i += 4; }
+      }
+      else if (p === 49) bg = null;
+      i++;
+    }
+  }
+  if (last < line.length) { _open(); out += escHtml(line.slice(last)); }
+  _close();
+  return out;
+}
+
+// Render full output text as editor lines with line numbers.
+function _renderOutput(text) {
+  if (!text || !text.trim()) return '';
+  const lines = text.split('\n');
+  if (lines.length && lines[lines.length - 1] === '') lines.pop();
+  if (!lines.length) return '';
+  const pad = String(lines.length).length;
+  return lines.map(function(line, i) {
+    return '<div class="out-line">' +
+      '<span class="out-ln">' + String(i + 1).padStart(pad, '\u00a0') + '</span>' +
+      '<span class="out-code">' + _ansiLine(line) + '</span>' +
+      '</div>';
+  }).join('');
 }
 
 // ── State ─────────────────────────────────────────────────────────────────────
@@ -318,7 +469,12 @@ async function fetchOutput() {
     const el = document.getElementById('term-output');
     if (!el) return;
     const distFromBottom = el.scrollHeight - el.scrollTop;
-    el.textContent = data.output || '';
+    const html = _renderOutput(data.output || '');
+    if (html) {
+      el.innerHTML = html;
+    } else if (!el.querySelector('.out-line')) {
+      el.innerHTML = '<div class="term-empty" style="padding:40px 16px"><div style="font-size:22px;opacity:.25">▋</div><div>等待输出…</div></div>';
+    }
     if (_autoScroll) {
       el.scrollTop = el.scrollHeight;
     } else {
