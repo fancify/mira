@@ -57,7 +57,8 @@ def test_keyword_detection_creates_alert():
         'last_output': '', 'waiting': False, 'registered_at': time.time(),
     }
     output_with_prompt = "Processing files...\nDo you want to proceed? (y/n)"
-    with patch('vibe.tmux_bridge.list_panes', return_value=[]), \
+    fake_panes = [{'target': 'work:0.0', 'command': 'ccc', 'cwd': '/tmp', 'session': 'work', 'window': 0, 'pane': 0}]
+    with patch('vibe.tmux_bridge.list_panes', return_value=fake_panes), \
          patch('vibe.tmux_bridge.capture_pane', return_value=output_with_prompt):
         from vibe.terminal_monitor import _poll_once
         _poll_once()
@@ -86,7 +87,8 @@ def test_waiting_cleared_when_prompt_gone():
         'waiting': True, 'registered_at': time.time(),
     }
     clean_output = "Proceeding with operation...\nDone."
-    with patch('vibe.tmux_bridge.list_panes', return_value=[]), \
+    fake_panes = [{'target': 'work:0.0', 'command': 'ccc', 'cwd': '/tmp', 'session': 'work', 'window': 0, 'pane': 0}]
+    with patch('vibe.tmux_bridge.list_panes', return_value=fake_panes), \
          patch('vibe.tmux_bridge.capture_pane', return_value=clean_output):
         from vibe.terminal_monitor import _poll_once
         _poll_once()
@@ -103,7 +105,8 @@ def test_alert_fires_only_on_rising_edge():
         'last_output': '', 'waiting': False, 'registered_at': time.time(),
     }
     output_with_prompt = "Do you want to proceed? (y/n)"
-    with patch('vibe.tmux_bridge.list_panes', return_value=[]), \
+    fake_panes = [{'target': 'work:0.0', 'command': 'ccc', 'cwd': '/tmp', 'session': 'work', 'window': 0, 'pane': 0}]
+    with patch('vibe.tmux_bridge.list_panes', return_value=fake_panes), \
          patch('vibe.tmux_bridge.capture_pane', return_value=output_with_prompt):
         from vibe.terminal_monitor import _poll_once
         _poll_once()  # rising edge: False → True → 1 alert
