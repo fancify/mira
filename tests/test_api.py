@@ -201,3 +201,6 @@ def test_stats_weekly_aggregation():
     assert len(data['days']) == 2
     assert data['days'][0]['sessions'] == 7   # first week
     assert data['days'][0]['active_hours'] == pytest.approx(1.4, abs=0.01)
+    # date = last day of each 7-day bucket
+    assert data['days'][0]['date'] == '2026-04-07'
+    assert data['days'][1]['date'] == '2026-04-14'

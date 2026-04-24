@@ -851,7 +851,11 @@ def stats_view(request: Request, range: str = "30d"):  # noqa: A002
     except ValueError:
         n = 30
         _is_weekly = False
-    range_days = max(7, min(n * 7 if _is_weekly else n, 365))
+    if _is_weekly:
+        n = max(1, min(n, 52))   # 52 weeks = 364 days, always full 7-day buckets
+        range_days = n * 7
+    else:
+        range_days = max(7, min(n, 365))
 
     from vibe.history_db import get_stats
     data = get_stats(range_days=range_days)
