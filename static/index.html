@@ -3465,6 +3465,56 @@ function showMainTab(tab) {
   }
 }
 
+async function loadDevPanes() {
+  try {
+    const res = await fetch('/api/terminals', { headers: _authHeaders() });
+    if (!res.ok) return;
+    const panes = await res.json();
+    const listEl = document.getElementById('dev-pane-list');
+    if (!listEl) return;
+
+    if (!panes.length) {
+      listEl.innerHTML = '<div class="dev-pane-empty">暂无活跃终端<br>使用 <code>mira term &lt;project&gt;</code> 启动</div>';
+      return;
+    }
+
+    listEl.innerHTML = panes.map(p => `
+      <div class="dev-pane-item${_devActivePane === p.target ? ' active' : ''}"
+           onclick="selectDevPane(${JSON.stringify(p.target)})">
+        <div class="dev-pane-label">${escHtml(p.label)}</div>
+        <div class="dev-pane-target">${escHtml(p.target)}</div>
+        ${p.waiting ? '<span class="dev-pane-waiting">⚠ 等待确认</span>' : ''}
+      </div>`).join('');
+  } catch(e) { console.warn('dev panes:', e); }
+}
+
+function selectDevPane(target) {
+  _devActivePane = target;
+  _devAutoScroll = true;
+
+  // Update sidebar selection highlight
+  document.querySelectorAll('.dev-pane-item').forEach(el => {
+    el.classList.toggle('active', el.querySelector('.dev-pane-target')?.textContent === target);
+  });
+
+  // Update terminal header
+  const header = document.getElementById('dev-terminal-header');
+  if (header) header.innerHTML = `<span>终端</span><span class="dev-terminal-target">${escHtml(target)}</span>`;
+
+  // Enable input bar
+  const input = document.getElementById('dev-input');
+  const btn = document.getElementById('dev-send-btn');
+  if (input) input.disabled = false;
+  if (btn) btn.disabled = false;
+
+  // Clear output and start fresh poll
+  const outputEl = document.getElementById('dev-terminal-output');
+  if (outputEl) outputEl.textContent = '';
+
+  _stopDevPoll();
+  _startDevPoll();
+}
+
 function toggleTerminalsSection() {
   terminalsOpen = !terminalsOpen;
   document.getElementById('terminals-body').style.display = terminalsOpen ? '' : 'none';
