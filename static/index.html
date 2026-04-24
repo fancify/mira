@@ -3454,7 +3454,7 @@ function showMainTab(tab) {
   }
 
   document.getElementById('panel-overview').style.display = isProjects ? '' : 'none';
-  document.getElementById('panel-dev').style.display = isProjects ? 'none' : '';
+  document.getElementById('panel-dev').style.display = isProjects ? 'none' : 'block';
   document.getElementById('tab-projects').classList.toggle('active', isProjects);
   document.getElementById('tab-dev').classList.toggle('active', !isProjects);
 
