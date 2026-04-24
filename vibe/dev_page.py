@@ -663,7 +663,17 @@ if (window.visualViewport) {
   window.visualViewport.addEventListener('resize', _updateInputBarPos);
   window.visualViewport.addEventListener('scroll', _updateInputBarPos);
 }
-window.addEventListener('resize', _updateInputBarPos);
+window.addEventListener('resize', function() {
+  _updateInputBarPos();
+  _updatePlaceholder();
+});
+
+function _updatePlaceholder() {
+  const ta = document.getElementById('term-input');
+  if (!ta) return;
+  ta.placeholder = _isMobile() ? '发送命令…' : '发送命令…   Shift+Enter 换行';
+}
+_updatePlaceholder();
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 async function init() {
@@ -730,12 +740,14 @@ init();
             <path d="m21 15-5-5L5 21"/>
           </svg>
         </button>
-        <textarea class="term-input" id="term-input" placeholder="发送命令… Shift+Enter 换行 · 粘贴/拖入图片可附带截图" disabled
+        <textarea class="term-input" id="term-input" placeholder="发送命令…" disabled
                   autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
                   rows="1"></textarea>
         <button class="term-send-btn" id="term-send-btn" onclick="sendKeys()" disabled>发送</button>
       </div>
-      <input type="file" id="term-file-input" accept="image/*" multiple style="display:none">
+      <input type="file" id="term-file-input"
+             accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif"
+             multiple style="display:none">
     </div>
   </div>
 </div>
