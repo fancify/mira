@@ -155,8 +155,51 @@ def render_dev_page() -> str:
   .term-send-btn:hover { opacity: .85; }
   .term-send-btn:disabled { opacity: .4; cursor: not-allowed; }
 
-  /* quick keys — hidden on desktop */
-  .term-quickkeys { display: none; }
+  /* ── Attachment previews ── */
+  .term-attachments {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    padding: 8px 10px 2px;
+  }
+  .term-attachments:empty { display: none; }
+  .attach-item {
+    position: relative; width: 64px; height: 64px;
+    border-radius: var(--radius-sm); border: 1px solid var(--border);
+    overflow: hidden; flex-shrink: 0; background: var(--panel);
+  }
+  .attach-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .attach-rm {
+    position: absolute; top: 2px; right: 2px;
+    width: 17px; height: 17px;
+    background: rgba(0,0,0,.75); color: #fff; border: none;
+    border-radius: 50%; font-size: 12px; line-height: 17px;
+    text-align: center; cursor: pointer; padding: 0; display: block;
+    transition: background .1s;
+  }
+  .attach-rm:hover { background: var(--red); }
+
+  /* Attach button (image icon, left of textarea) */
+  .term-attach-btn {
+    flex-shrink: 0; background: none;
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    color: var(--muted); width: 34px; height: 34px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; padding: 0; transition: color .12s, border-color .12s;
+  }
+  .term-attach-btn:hover:not(:disabled) { color: var(--text); border-color: var(--sub); }
+  .term-attach-btn:disabled { opacity: .35; cursor: not-allowed; }
+
+  /* Drop-zone overlay on output area */
+  .term-output { position: relative; }
+  .term-output.drag-over::after {
+    content: '拖放图片';
+    position: absolute; inset: 0;
+    background: rgba(var(--accent-rgb), .1);
+    border: 2px dashed var(--accent);
+    border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--accent); font-size: 13px;
+    pointer-events: none; z-index: 5;
+  }
 
   /* ── Mobile: master-detail (≤ 900px) ── */
   @media (max-width: 900px) {
@@ -199,7 +242,7 @@ def render_dev_page() -> str:
     .dev-page.detail-open .term-main { display: flex; flex: 1; }
     .term-back-btn { display: inline-flex; align-items: center; }
 
-    /* titlebar quick buttons hidden on mobile — moved to quick-keys row */
+    /* titlebar quick buttons hidden on mobile */
     .term-quickbtns { display: none; }
 
     /* output area — bottom padding set by JS to avoid inputbar overlap */
@@ -217,33 +260,6 @@ def render_dev_page() -> str:
       gap: 0;
     }
 
-    /* ── Quick keys row ── */
-    .term-quickkeys {
-      display: flex;
-      gap: 6px;
-      padding: 8px 10px 6px;
-      overflow-x: auto;
-      scrollbar-width: none;
-      -webkit-overflow-scrolling: touch;
-    }
-    .term-quickkeys::-webkit-scrollbar { display: none; }
-    .term-qkey {
-      flex-shrink: 0;
-      background: rgba(255,255,255,.06);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      color: var(--text);
-      font-family: var(--mono);
-      font-size: 12px;
-      padding: 6px 14px;
-      cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
-      user-select: none;
-      transition: background .1s, border-color .1s;
-      line-height: 1.2;
-    }
-    .term-qkey:active { background: var(--accent); color: #fff; border-color: var(--accent); }
-
     /* input row inside inputbar */
     .term-input-row {
       display: flex;
@@ -257,6 +273,8 @@ def render_dev_page() -> str:
       max-height: 160px;
     }
     .term-send-btn { font-size: 14px; height: 44px; padding: 0 20px; }
+    .term-attach-btn { width: 44px; height: 44px; }
+    .attach-item { width: 56px; height: 56px; }
   }
 """
 
@@ -417,7 +435,9 @@ function selectPane(target, cmd) {
   document.getElementById('term-title').textContent = target + (cmd ? '  ·  ' + cmd : '');
   document.getElementById('term-input').disabled = false;
   document.getElementById('term-send-btn').disabled = false;
+  document.getElementById('btn-attach').disabled = false;
   document.getElementById('term-output').textContent = '';
+  _clearAttachments();
   document.getElementById('dev-page').classList.add('detail-open');
   stopPoll();
   startPoll();
@@ -437,7 +457,9 @@ function goBackToList() {
   document.getElementById('dev-page').classList.remove('detail-open');
   document.getElementById('term-input').disabled = true;
   document.getElementById('term-send-btn').disabled = true;
+  document.getElementById('btn-attach').disabled = true;
   document.getElementById('term-title').textContent = '';
+  _clearAttachments();
   document.getElementById('term-output').innerHTML =
     `<div class="term-empty"><div style="font-size:28px;opacity:.3">⬛</div><div>从左侧选择一个终端</div><div><code>mira term &lt;project&gt;</code> 启动新会话</div></div>`;
 }
@@ -523,6 +545,7 @@ function sendKeys() {
     headers: _authHeaders({'Content-Type': 'application/json'}),
     body: JSON.stringify({keys: keys + '\n'})
   }).catch(() => {});
+  _clearAttachments();
   // keep keyboard open on mobile
   if (_isMobile()) { ta.focus(); _updateInputBarPos(); }
 }
@@ -537,22 +560,79 @@ function sendRaw(keys) {
 document.getElementById('btn-ctrlc').addEventListener('click', () => sendRaw('C-c'));
 document.getElementById('btn-enter').addEventListener('click', () => sendRaw('\n'));
 
-// ── Quick keys (mobile) ───────────────────────────────────────────────────────
-document.querySelectorAll('.term-qkey').forEach(btn => {
-  btn.addEventListener('click', function(e) {
-    e.preventDefault();
-    const raw = this.dataset.raw;
-    // tmux special keys need the raw string; tab is '\t'
-    if (raw === '\t') {
-      sendRaw('\t');
-    } else {
-      sendRaw(raw);
+// ── Image attachments ─────────────────────────────────────────────────────────
+let _attachments = [];
+let _attachSeq = 0;
+
+function _addAttachment(file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  const id = ++_attachSeq;
+  const url = URL.createObjectURL(file);
+  _attachments.push({id, url, name: file.name});
+  _renderAttachments();
+  _updateInputBarPos();
+}
+
+function _removeAttachment(id) {
+  const idx = _attachments.findIndex(function(a) { return a.id === id; });
+  if (idx >= 0) { URL.revokeObjectURL(_attachments[idx].url); _attachments.splice(idx, 1); }
+  _renderAttachments();
+  _updateInputBarPos();
+}
+
+function _clearAttachments() {
+  _attachments.forEach(function(a) { URL.revokeObjectURL(a.url); });
+  _attachments = [];
+  _renderAttachments();
+}
+
+function _renderAttachments() {
+  const el = document.getElementById('term-attachments');
+  if (!_attachments.length) { el.innerHTML = ''; return; }
+  el.innerHTML = _attachments.map(function(a) {
+    return '<div class="attach-item">' +
+      '<img class="attach-img" src="' + a.url + '" alt="' + escHtml(a.name) + '">' +
+      '<button class="attach-rm" onclick="_removeAttachment(' + a.id + ')" title="移除">×</button>' +
+      '</div>';
+  }).join('');
+}
+
+// paste image from clipboard (Cmd+V with screenshot)
+document.getElementById('term-input').addEventListener('paste', function(e) {
+  const items = e.clipboardData && e.clipboardData.items;
+  if (!items) return;
+  for (let i = 0; i < items.length; i++) {
+    if (items[i].type.startsWith('image/')) {
+      e.preventDefault();
+      _addAttachment(items[i].getAsFile());
     }
-    // keep focus on input after quick key
-    const inp = document.getElementById('term-input');
-    if (inp && !inp.disabled) inp.focus();
-  });
+  }
 });
+
+// file picker
+document.getElementById('btn-attach').addEventListener('click', function() {
+  document.getElementById('term-file-input').click();
+});
+document.getElementById('term-file-input').addEventListener('change', function() {
+  Array.from(this.files).forEach(_addAttachment);
+  this.value = '';
+});
+
+// drag & drop onto output area
+(function() {
+  const out = document.getElementById('term-output');
+  out.addEventListener('dragover', function(e) {
+    e.preventDefault(); e.dataTransfer.dropEffect = 'copy';
+    this.classList.add('drag-over');
+  });
+  out.addEventListener('dragleave', function(e) {
+    if (!this.contains(e.relatedTarget)) this.classList.remove('drag-over');
+  });
+  out.addEventListener('drop', function(e) {
+    e.preventDefault(); this.classList.remove('drag-over');
+    Array.from(e.dataTransfer.files).forEach(_addAttachment);
+  });
+})();
 
 // ── Mobile: fix inputbar above keyboard ──────────────────────────────────────
 function _isMobile() { return window.innerWidth <= 900; }
@@ -642,23 +722,20 @@ init();
       </div>
     </div>
     <div class="term-inputbar">
-      <div class="term-quickkeys">
-        <button class="term-qkey" data-raw="	">Tab</button>
-        <button class="term-qkey" data-raw="Escape">Esc</button>
-        <button class="term-qkey" data-raw="Up">↑</button>
-        <button class="term-qkey" data-raw="Down">↓</button>
-        <button class="term-qkey" data-raw="C-c">^C</button>
-        <button class="term-qkey" data-raw="C-d">^D</button>
-        <button class="term-qkey" data-raw="C-l">^L</button>
-        <button class="term-qkey" data-raw="C-a">^A</button>
-        <button class="term-qkey" data-raw="C-e">^E</button>
-      </div>
+      <div class="term-attachments" id="term-attachments"></div>
       <div class="term-input-row">
-        <textarea class="term-input" id="term-input" placeholder="发送命令… Shift+Enter 换行" disabled
+        <button class="term-attach-btn" id="btn-attach" disabled title="添加图片（或直接粘贴截图）">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
+            <path d="m21 15-5-5L5 21"/>
+          </svg>
+        </button>
+        <textarea class="term-input" id="term-input" placeholder="发送命令… Shift+Enter 换行 · 粘贴/拖入图片可附带截图" disabled
                   autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
                   rows="1"></textarea>
         <button class="term-send-btn" id="term-send-btn" onclick="sendKeys()" disabled>发送</button>
       </div>
+      <input type="file" id="term-file-input" accept="image/*" multiple style="display:none">
     </div>
   </div>
 </div>
