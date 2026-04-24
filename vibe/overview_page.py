@@ -183,6 +183,13 @@ def _section(num: str, title: str, body: str) -> str:
 
 
 def render_overview_page(p: ProjectInfo) -> str:
+    from vibe.topbar import theme_vars_css, topbar_css, topbar_html, settings_overlay_html, topbar_js
+    _theme_css = theme_vars_css()
+    _tb_css    = topbar_css()
+    _tb_html   = topbar_html(back_url="/")
+    _overlays  = settings_overlay_html()
+    _tb_js     = topbar_js()
+
     git    = p.git    or type('', (), {'branch': None, 'commit_hash': None, 'dirty_files': [],
                                        'monthly_commits': 0, 'recent_commits': []})()
     deploy = p.deploy or type('', (), {'type': None, 'host': None, 'url': None,
@@ -364,55 +371,37 @@ def render_overview_page(p: ProjectInfo) -> str:
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{_e(p.name)} · 全局面貌</title>
+<script>document.documentElement.dataset.theme = localStorage.getItem('mira-skin') || 'default';</script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+SC:wght@400;700;900&display=swap');
-  *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
+{_theme_css}
+{_tb_css}
+  /* ── extra color tokens used by this page ── */
   :root {{
-    --gold:   #d9b36b; --gold-dim:   rgba(217,179,107,.15); --gold-border:   rgba(217,179,107,.3);
-    --blue:   #4e9eff; --blue-dim:   rgba(78,158,255,.12);  --blue-border:   rgba(78,158,255,.3);
-    --red:    #ff5f5f; --red-dim:    rgba(255,95,95,.12);   --red-border:    rgba(255,95,95,.3);
-    --green:  #5cd08a; --green-dim:  rgba(92,208,138,.12);  --green-border:  rgba(92,208,138,.3);
-    --purple: #b07cff; --purple-dim: rgba(176,124,255,.12); --purple-border: rgba(176,124,255,.3);
-    --orange: #e5a650;
-    --sub:    #7a8499;
-    --dim:    #3a3f4b;
-    --bg:     #080c14;
-    --panel:  rgba(14,20,36,.9);
-    --border: rgba(255,255,255,.07);
-    --text:   #eef1f7;
-    --mono:   'JetBrains Mono', monospace;
-    --sans:   'Noto Sans SC', sans-serif;
-    --radius: 8px; --radius-sm: 4px; --radius-pill: 20px; --card-shadow: none;
+    --gold:          #d9b36b; --gold-dim:   rgba(217,179,107,.15); --gold-border:   rgba(217,179,107,.3);
+    --blue-dim:      rgba(78,158,255,.12);  --blue-border:   rgba(78,158,255,.3);
+    --red-dim:       rgba(255,95,95,.12);   --red-border:    rgba(255,95,95,.3);
+    --green-dim:     rgba(92,208,138,.12);  --green-border:  rgba(92,208,138,.3);
+    --purple:        #b07cff; --purple-dim: rgba(176,124,255,.12); --purple-border: rgba(176,124,255,.3);
+    --dim:           #3a3f4b; --radius-pill: 20px; --card-shadow: none;
   }}
   [data-theme="neon-pixel"] {{
     --gold: #ffff00; --gold-dim: rgba(255,255,0,.12); --gold-border: rgba(255,255,0,.3);
-    --blue: #00ffff; --blue-dim: rgba(0,255,255,.12); --blue-border: rgba(0,255,255,.3);
-    --red: #ff0040; --red-dim: rgba(255,0,64,.12); --red-border: rgba(255,0,64,.3);
-    --green: #00ff00; --green-dim: rgba(0,255,0,.12); --green-border: rgba(0,255,0,.3);
+    --blue-dim: rgba(0,255,255,.12); --blue-border: rgba(0,255,255,.3);
+    --red-dim: rgba(255,0,64,.12); --red-border: rgba(255,0,64,.3);
+    --green-dim: rgba(0,255,0,.12); --green-border: rgba(0,255,0,.3);
     --purple: #ff00ff; --purple-dim: rgba(255,0,255,.12); --purple-border: rgba(255,0,255,.3);
-    --orange: #ff8800; --sub: #a0a0cc; --dim: #282840;
-    --bg: #0a0a0a; --panel: rgba(20,20,20,.9); --border: #00ff00; --text: #e0e0ff;
-    --radius: 0px; --radius-sm: 0px; --radius-pill: 0px; --card-shadow: 2px 2px 0 var(--border);
+    --dim: #282840; --radius-pill: 0px; --card-shadow: 2px 2px 0 var(--border);
   }}
   [data-theme="pixel-cyber"] {{
     --gold: #ffaa00; --gold-dim: rgba(255,170,0,.12); --gold-border: rgba(255,170,0,.3);
-    --blue: #00d4ff; --blue-dim: rgba(0,212,255,.12); --blue-border: rgba(0,212,255,.3);
-    --red: #ff3355; --red-dim: rgba(255,51,85,.12); --red-border: rgba(255,51,85,.3);
-    --green: #00ff88; --green-dim: rgba(0,255,136,.12); --green-border: rgba(0,255,136,.3);
+    --blue-dim: rgba(0,212,255,.12); --blue-border: rgba(0,212,255,.3);
+    --red-dim: rgba(255,51,85,.12); --red-border: rgba(255,51,85,.3);
+    --green-dim: rgba(0,255,136,.12); --green-border: rgba(0,255,136,.3);
     --purple: #dd00ff; --purple-dim: rgba(221,0,255,.12); --purple-border: rgba(221,0,255,.3);
-    --orange: #ffaa00; --sub: #a8daf0; --dim: #2a5570;
-    --bg: #020c1a; --panel: rgba(10,31,56,.9); --border: #00d4ff; --text: #eef8ff;
-    --radius: 0px; --radius-sm: 0px; --radius-pill: 0px; --card-shadow: 2px 2px 0 var(--border);
+    --dim: #2a5570; --radius-pill: 0px; --card-shadow: 2px 2px 0 var(--border);
   }}
-  [data-theme="pixel-cyber"] body {{
-    background-image: linear-gradient(rgba(0,212,255,0.04) 1px, transparent 1px),
-                      linear-gradient(90deg, rgba(0,212,255,0.04) 1px, transparent 1px) !important;
-    background-size: 8px 8px !important;
-  }}
-  body {{
-    background: var(--bg); color: var(--text); font-family: var(--mono);
-    min-height: 100vh; padding: 48px 32px 80px;
-  }}
+  body {{ padding: 28px 32px 80px; }}
   body::before {{
     content: ''; position: fixed; inset: 0;
     background-image:
@@ -421,15 +410,6 @@ def render_overview_page(p: ProjectInfo) -> str:
     background-size: 40px 40px; pointer-events: none; z-index: 0;
   }}
   .wrap {{ position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; }}
-
-  /* ── back link ── */
-  .back-link {{
-    display: inline-flex; align-items: center; gap: 6px;
-    font-size: 12px; color: var(--sub); text-decoration: none;
-    margin-bottom: 36px; letter-spacing: .5px;
-    transition: color .15s;
-  }}
-  .back-link:hover {{ color: var(--text); }}
 
   /* ── page header ── */
   .page-header {{ margin-bottom: 52px; }}
@@ -598,9 +578,8 @@ def render_overview_page(p: ProjectInfo) -> str:
 </style>
 </head>
 <body>
+{_tb_html}
 <div class="wrap">
-  <a class="back-link" href="/">← 返回 Vibe Manager</a>
-
   <div class="page-header">
     <div class="page-header-eyebrow">全局面貌 · {_e(p.path)}</div>
     <h1>{_e(p.name)}</h1>
@@ -610,11 +589,9 @@ def render_overview_page(p: ProjectInfo) -> str:
 
   {sections_html}
 </div>
+{_overlays}
 <script>
-  (function() {{
-    var skin = localStorage.getItem('mira-skin') || 'default';
-    document.documentElement.dataset.theme = skin;
-  }})();
+{_tb_js}
 </script>
 </body>
 </html>'''
