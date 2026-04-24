@@ -1286,14 +1286,14 @@ function _termSend(keys) {{
 }}
 
 document.getElementById('btn-term-ctrlc').addEventListener('click', () => _termSend('C-c'));
-document.getElementById('btn-term-enter').addEventListener('click', () => _termSend('\n'));
+document.getElementById('btn-term-enter').addEventListener('click', () => _termSend('\\n'));
 
 (function() {{
   const inp = document.getElementById('term-input');
   const sendFn = () => {{
     const v = inp.value.trim();
     if (!v) return;
-    _termSend(v + '\n');
+    _termSend(v + '\\n');
     inp.value = '';
   }};
   document.getElementById('term-send-btn').addEventListener('click', sendFn);
