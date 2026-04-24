@@ -138,7 +138,7 @@ let _adminToken = localStorage.getItem('mira-admin-token') || '';
 let _currentRange = '30d';
 
 function _authHeaders() {
-  return _adminToken ? { 'Authorization': 'Bearer ' + _adminToken } : {};
+  return _adminToken ? { 'X-Admin-Token': _adminToken } : {};
 }
 
 function _esc(s) {
