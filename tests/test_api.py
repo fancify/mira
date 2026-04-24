@@ -210,3 +210,10 @@ def test_stats_weekly_aggregation():
     # date = last day of each 7-day bucket
     assert data['days'][0]['date'] == '2026-04-07'
     assert data['days'][1]['date'] == '2026-04-14'
+
+
+def test_stats_page_returns_html():
+    resp = client.get('/stats')
+    assert resp.status_code == 200
+    assert 'text/html' in resp.headers['content-type']
+    assert b'stats' in resp.content.lower()

@@ -394,6 +394,12 @@ def get_project(request: Request, project_id: str):
 def refresh_project(project_id: str):
     return get_project(project_id)
 
+@api.get("/stats", response_class=HTMLResponse)
+def stats_page_route():
+    from vibe.stats_page import render_stats_page
+    return HTMLResponse(render_stats_page())
+
+
 @api.get("/projects/{project_id}", response_class=HTMLResponse)
 def project_detail_page(project_id: str):
     from vibe.detail_page import render_detail_page
