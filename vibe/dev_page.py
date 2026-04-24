@@ -85,19 +85,24 @@ def render_dev_page() -> str:
     flex-shrink: 0; background: var(--panel);
   }
   .term-input-row {
-    display: flex; gap: 8px;
+    display: flex; gap: 8px; align-items: flex-end;
   }
   .term-input {
     flex: 1; background: rgba(255,255,255,.04); border: 1px solid var(--border);
     border-radius: var(--radius-sm); padding: 7px 10px; color: var(--text);
     font-family: var(--mono); font-size: 12px; outline: none; transition: border-color .15s;
+    resize: none; overflow-y: hidden; line-height: 1.5;
+    min-height: 34px; max-height: 120px;
+    display: block; box-sizing: border-box;
   }
+  .term-input.scrollable { overflow-y: auto; }
   .term-input:focus { border-color: var(--accent); }
   .term-input:disabled { opacity: .4; cursor: not-allowed; }
   .term-send-btn {
     background: var(--accent); border: none; color: #fff;
     padding: 7px 16px; border-radius: var(--radius-sm); font-size: 12px;
     cursor: pointer; font-family: var(--mono); transition: opacity .12s; flex-shrink: 0;
+    height: 34px; /* matches single-line input height */
   }
   .term-send-btn:hover { opacity: .85; }
   .term-send-btn:disabled { opacity: .4; cursor: not-allowed; }
@@ -194,12 +199,14 @@ def render_dev_page() -> str:
       display: flex;
       gap: 8px;
       padding: 6px 10px 0;
+      align-items: flex-end;
     }
     .term-input {
       font-size: 16px; /* prevent iOS zoom */
       padding: 10px 12px;
+      max-height: 160px;
     }
-    .term-send-btn { padding: 10px 20px; font-size: 14px; }
+    .term-send-btn { font-size: 14px; height: 44px; padding: 0 20px; }
   }
 """
 
@@ -324,19 +331,44 @@ document.getElementById('term-output').addEventListener('scroll', function() {
   _autoScroll = Math.abs(this.scrollHeight - this.scrollTop - this.clientHeight) < 60;
 });
 
+// ── Textarea auto-resize ─────────────────────────────────────────────────────
+function _resizeInput() {
+  const ta = document.getElementById('term-input');
+  if (!ta) return;
+  ta.style.height = 'auto';
+  const maxH = _isMobile() ? 160 : 120;
+  const newH = Math.min(ta.scrollHeight, maxH);
+  ta.style.height = newH + 'px';
+  ta.classList.toggle('scrollable', ta.scrollHeight > maxH);
+  _updateInputBarPos();
+}
+
+(function _bindTextarea() {
+  const ta = document.getElementById('term-input');
+  ta.addEventListener('input', _resizeInput);
+  ta.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendKeys();
+    }
+  });
+})();
+
 // ── Send ──────────────────────────────────────────────────────────────────────
 function sendKeys() {
-  const inp = document.getElementById('term-input');
-  const keys = inp.value.trim();
+  const ta = document.getElementById('term-input');
+  const keys = ta.value.trimEnd();
   if (!keys || !_currentTarget) return;
-  inp.value = '';
+  ta.value = '';
+  ta.style.height = '';
+  ta.classList.remove('scrollable');
   fetch(`/api/terminals/${encodeURIComponent(_currentTarget)}/send`, {
     method: 'POST',
     headers: _authHeaders({'Content-Type': 'application/json'}),
     body: JSON.stringify({keys: keys + '\n'})
   }).catch(() => {});
   // keep keyboard open on mobile
-  if (_isMobile()) inp.focus();
+  if (_isMobile()) { ta.focus(); _updateInputBarPos(); }
 }
 function sendRaw(keys) {
   if (!_currentTarget) return;
@@ -466,9 +498,9 @@ init();
         <button class="term-qkey" data-raw="C-e">^E</button>
       </div>
       <div class="term-input-row">
-        <input class="term-input" id="term-input" placeholder="发送按键…" disabled
-               autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
-               onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendKeys();}">
+        <textarea class="term-input" id="term-input" placeholder="发送命令… Shift+Enter 换行" disabled
+                  autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+                  rows="1"></textarea>
         <button class="term-send-btn" id="term-send-btn" onclick="sendKeys()" disabled>发送</button>
       </div>
     </div>
