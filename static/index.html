@@ -3480,7 +3480,7 @@ async function loadDevPanes() {
 
     listEl.innerHTML = panes.map(p => `
       <div class="dev-pane-item${_devActivePane === p.target ? ' active' : ''}"
-           onclick="selectDevPane(${JSON.stringify(p.target)})">
+           onclick="selectDevPane(${escHtml(JSON.stringify(p.target))})">
         <div class="dev-pane-label">${escHtml(p.label)}</div>
         <div class="dev-pane-target">${escHtml(p.target)}</div>
         ${p.waiting ? '<span class="dev-pane-waiting">⚠ 等待确认</span>' : ''}
