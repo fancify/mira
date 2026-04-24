@@ -3435,8 +3435,31 @@ let chatHistory = [];
 let chatOpen = false;
 let chatAlertsLoaded = false;
 
+// ── Dev Mode state ──────────────────────────────────────────────
+let _devActivePane = null;      // currently selected tmux target string
+let _devPollTimer = null;       // setInterval handle for output polling
+let _devAutoScroll = true;      // whether to auto-scroll terminal output
+
 let terminalsOpen = false;
 let _terminalsPollTimer = null;
+
+function showMainTab(tab) {
+  const isProjects = tab === 'projects';
+  document.getElementById('panel-overview').style.display = isProjects ? '' : 'none';
+  document.getElementById('panel-dev').style.display = isProjects ? 'none' : '';
+  document.getElementById('tab-projects').classList.toggle('active', isProjects);
+  document.getElementById('tab-dev').classList.toggle('active', !isProjects);
+
+  if (!isProjects) {
+    // Entered Dev tab
+    if (!_isAdmin) { openLoginModal(() => showMainTab('dev')); return; }
+    loadDevPanes();
+    if (_devActivePane) _startDevPoll();
+  } else {
+    // Left Dev tab
+    _stopDevPoll();
+  }
+}
 
 function toggleTerminalsSection() {
   terminalsOpen = !terminalsOpen;
