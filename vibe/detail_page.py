@@ -177,6 +177,80 @@ def render_detail_page(project_id: str, project_name: str) -> str:
   .tab-panel {{ display: none; }}
   .tab-panel.active {{ display: block; }}
 
+  /* ── Terminal Tab ────────────────────────────────────────────────────────── */
+  .term-layout {{
+    display: flex; height: calc(100vh - 100px); min-height: 400px;
+  }}
+  .term-sidebar {{
+    width: 160px; border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; flex-shrink: 0;
+  }}
+  .term-sidebar-header {{
+    padding: 10px 12px; font-size: 11px; color: var(--text-muted);
+    font-weight: 600; letter-spacing: .5px;
+    border-bottom: 1px solid var(--border);
+  }}
+  .term-sidebar-footer {{
+    padding: 8px 12px; font-size: 10px; color: var(--muted);
+    border-top: 1px solid var(--border); margin-top: auto;
+  }}
+  .term-pane-row {{
+    padding: 8px 12px; display: flex; align-items: center; gap: 7px;
+    cursor: pointer; border-left: 2px solid transparent;
+  }}
+  .term-pane-row:hover {{ background: rgba(255,255,255,.03); }}
+  .term-pane-row.active {{
+    background: rgba(79,70,229,.12); border-left-color: var(--accent);
+  }}
+  .term-pane-dot {{
+    width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+  }}
+  .term-pane-dot.running {{ background: #3fb950; }}
+  .term-pane-dot.waiting {{ background: #d29922; }}
+  .term-pane-name {{ font-size: 11px; color: var(--text); }}
+  .term-pane-cmd  {{ font-size: 9px; color: var(--text-muted); margin-top: 1px; }}
+  .term-main {{
+    flex: 1; display: flex; flex-direction: column; min-width: 0;
+  }}
+  .term-titlebar {{
+    padding: 6px 12px; display: flex; align-items: center;
+    justify-content: space-between; border-bottom: 1px solid var(--border);
+    font-size: 11px; font-family: var(--mono); color: var(--text);
+    flex-shrink: 0;
+  }}
+  .term-quickbtns {{ display: flex; gap: 6px; }}
+  .term-qbtn {{
+    background: var(--panel); border: 1px solid var(--border);
+    color: var(--text-muted); font-size: 10px; padding: 2px 8px;
+    border-radius: 3px; cursor: pointer; font-family: var(--mono);
+  }}
+  .term-qbtn:hover {{ border-color: var(--accent); color: var(--accent); }}
+  .term-output {{
+    flex: 1; padding: 10px 14px; font-family: var(--mono);
+    font-size: 12px; line-height: 1.6; overflow-y: auto;
+    white-space: pre-wrap; word-break: break-all; color: var(--text);
+  }}
+  .term-inputbar {{
+    padding: 8px 12px; border-top: 1px solid var(--border);
+    display: flex; gap: 8px; flex-shrink: 0;
+  }}
+  .term-input {{
+    flex: 1; background: var(--panel); border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 10px; color: var(--text);
+    font-family: var(--mono); font-size: 12px; outline: none;
+  }}
+  .term-input:focus {{ border-color: var(--accent); }}
+  .term-send-btn {{
+    background: #238636; border: none; color: #fff;
+    padding: 6px 14px; border-radius: 6px; font-size: 12px; cursor: pointer;
+  }}
+  .term-send-btn:hover {{ background: #2ea043; }}
+  .term-empty {{
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    color: var(--text-muted); font-size: 13px; text-align: center; gap: 8px;
+  }}
+
   /* ── overview iframe ── */
   .overview-frame {{
     width: 100%; border: none; min-height: calc(100vh - 92px);
@@ -483,6 +557,7 @@ def render_detail_page(project_id: str, project_name: str) -> str:
     <button class="tab-btn" id="tab-overview" onclick="showTab('overview')">系统架构</button>
     <button class="tab-btn" id="tab-design" onclick="showTab('design')">设计文档</button>
     <button class="tab-btn" id="tab-prompts" onclick="showTab('prompts')">Prompts</button>
+    <button class="tab-btn" id="tab-terminals" onclick="showTab('terminals')">⬛ 终端</button>
   </div>
   <button class="refresh-btn" onclick="reload()" title="刷新">↻</button>
 </div>
@@ -498,6 +573,31 @@ def render_detail_page(project_id: str, project_name: str) -> str:
     <div class="loading"><div class="spinner"></div>加载中...</div>
   </div>
   <div class="tab-panel" id="panel-prompts"></div>
+  <div class="tab-panel" id="panel-terminals">
+    <div class="term-layout">
+      <div class="term-sidebar">
+        <div class="term-sidebar-header">活跃会话</div>
+        <div id="term-pane-list"></div>
+        <div class="term-sidebar-footer">每 3 秒刷新</div>
+      </div>
+      <div class="term-main">
+        <div class="term-titlebar" id="term-titlebar" style="display:none">
+          <span id="term-title"></span>
+          <div class="term-quickbtns">
+            <button class="term-qbtn" id="btn-term-ctrlc">Ctrl+C</button>
+            <button class="term-qbtn" id="btn-term-enter">↵ Enter</button>
+          </div>
+        </div>
+        <div class="term-output" id="term-output">
+          <div class="term-empty"><div>⬛</div><div>正在加载终端...</div></div>
+        </div>
+        <div class="term-inputbar" id="term-inputbar" style="display:none">
+          <input class="term-input" id="term-input" placeholder="输入命令后按 Enter 发送...">
+          <button class="term-send-btn" id="term-send-btn">发送</button>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -509,8 +609,15 @@ let overviewLoaded = false;
 let designLoaded = false;
 let promptsLoaded = false;
 
+let _termPollTimer = null;
+let _termCurrentTarget = null;
+
 function showTab(name) {{
   activeTab = name;
+  if (name !== 'terminals') {{
+    clearInterval(_termPollTimer);
+    _termPollTimer = null;
+  }}
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
   document.getElementById('tab-' + name).classList.add('active');
@@ -521,6 +628,13 @@ function showTab(name) {{
   if (name === 'prompts'  && !promptsLoaded) {{
     if (!_isAdmin) {{ openLoginModal(() => {{ promptsLoaded = false; renderPrompts(); }}); return; }}
     renderPrompts();
+  }}
+  if (name === 'terminals') {{
+    _loadTerminalsTab();
+    _termPollTimer = setInterval(() => {{
+      _loadTerminalsTab();
+      if (_termCurrentTarget) _fetchTermOutput();
+    }}, 3000);
   }}
 }}
 
@@ -1094,6 +1208,92 @@ async function renderPrompts() {{
 
 function promptGoPage(p) {{ window._promptGoPage && window._promptGoPage(p); }}
 function updatePrompts() {{ window._updatePrompts && window._updatePrompts(); }}
+
+// ─── Terminal Tab ──────────────────────────────────────────────────────────────
+function _loadTerminalsTab() {{
+  if (!_isAdmin) return;
+  fetch('/api/terminals', {{headers: _authHeaders()}})
+    .then(r => r.ok ? r.json() : [])
+    .then(panes => {{
+      const mine = panes.filter(p => p.project_id === PROJECT_ID);
+      const list = document.getElementById('term-pane-list');
+      if (!mine.length) {{
+        list.innerHTML = '';
+        document.getElementById('term-output').innerHTML =
+          '<div class="term-empty"><div>⬛</div><div>暂无与本项目关联的活跃终端</div></div>';
+        document.getElementById('term-titlebar').style.display = 'none';
+        document.getElementById('term-inputbar').style.display = 'none';
+        _termCurrentTarget = null;
+        return;
+      }}
+      list.innerHTML = mine.map(p => `
+        <div class="term-pane-row${{p.target === _termCurrentTarget ? ' active' : ''}}"
+             data-target="${{escHtml(p.target)}}"
+             data-cmd="${{escHtml(p.command || '')}}">
+          <div class="term-pane-dot ${{p.waiting ? 'waiting' : 'running'}}"></div>
+          <div>
+            <div class="term-pane-name">${{escHtml(p.target)}}</div>
+            <div class="term-pane-cmd">${{escHtml(p.command || '')}}</div>
+          </div>
+        </div>`).join('');
+      list.querySelectorAll('.term-pane-row').forEach(row => {{
+        row.addEventListener('click', () =>
+          _selectTermPane(row.dataset.target, row.dataset.cmd));
+      }});
+      if (!_termCurrentTarget && mine.length) {{
+        _selectTermPane(mine[0].target, mine[0].command || '');
+      }}
+    }})
+    .catch(() => {{}});
+}}
+
+function _selectTermPane(target, cmd) {{
+  _termCurrentTarget = target;
+  document.getElementById('term-title').textContent = target + (cmd ? '  ·  ' + cmd : '');
+  document.getElementById('term-titlebar').style.display = '';
+  document.getElementById('term-inputbar').style.display = '';
+  document.querySelectorAll('.term-pane-row').forEach(r =>
+    r.classList.toggle('active', r.dataset.target === target));
+  _fetchTermOutput();
+}}
+
+function _fetchTermOutput() {{
+  if (!_termCurrentTarget) return;
+  fetch(`/api/terminals/${{encodeURIComponent(_termCurrentTarget)}}/output?lines=200`,
+    {{headers: _authHeaders()}})
+    .then(r => r.ok ? r.json() : null)
+    .then(data => {{
+      if (!data) return;
+      const el = document.getElementById('term-output');
+      el.textContent = data.output || '';
+      el.scrollTop = el.scrollHeight;
+    }})
+    .catch(() => {{}});
+}}
+
+function _termSend(keys) {{
+  if (!_termCurrentTarget) return;
+  fetch(`/api/terminals/${{encodeURIComponent(_termCurrentTarget)}}/send`, {{
+    method: 'POST',
+    headers: _authHeaders({{'Content-Type': 'application/json'}}),
+    body: JSON.stringify({{keys}})
+  }}).catch(() => {{}});
+}}
+
+document.getElementById('btn-term-ctrlc').addEventListener('click', () => _termSend('C-c'));
+document.getElementById('btn-term-enter').addEventListener('click', () => _termSend('\n'));
+
+(function() {{
+  const inp = document.getElementById('term-input');
+  const sendFn = () => {{
+    const v = inp.value.trim();
+    if (!v) return;
+    _termSend(v + '\n');
+    inp.value = '';
+  }};
+  document.getElementById('term-send-btn').addEventListener('click', sendFn);
+  inp.addEventListener('keydown', e => {{ if (e.key === 'Enter') sendFn(); }});
+}})();
 
 async function reload() {{
   summaryLoaded = false; overviewLoaded = false; designLoaded = false; promptsLoaded = false;
