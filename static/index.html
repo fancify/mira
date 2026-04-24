@@ -3444,19 +3444,23 @@ let terminalsOpen = false;
 let _terminalsPollTimer = null;
 
 function showMainTab(tab) {
+  if (tab !== 'projects' && tab !== 'dev') return;
   const isProjects = tab === 'projects';
+
+  if (!isProjects && !_isAdmin) {
+    openLoginModal(() => showMainTab('dev'));
+    return;
+  }
+
   document.getElementById('panel-overview').style.display = isProjects ? '' : 'none';
   document.getElementById('panel-dev').style.display = isProjects ? 'none' : '';
   document.getElementById('tab-projects').classList.toggle('active', isProjects);
   document.getElementById('tab-dev').classList.toggle('active', !isProjects);
 
   if (!isProjects) {
-    // Entered Dev tab
-    if (!_isAdmin) { openLoginModal(() => showMainTab('dev')); return; }
     loadDevPanes();
     if (_devActivePane) _startDevPoll();
   } else {
-    // Left Dev tab
     _stopDevPoll();
   }
 }
