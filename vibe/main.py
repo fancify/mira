@@ -1,7 +1,8 @@
 import asyncio
+import hashlib
 import typer
 import uvicorn
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
@@ -14,6 +15,13 @@ cli = typer.Typer()
 api = FastAPI(title="Vibe Manager")
 
 STATIC_DIR = Path(__file__).parent.parent / "static"
+
+if STATIC_DIR.exists():
+    api.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+    @api.get("/", response_class=FileResponse)
+    def index():
+        return FileResponse(str(STATIC_DIR / "index.html"))
 
 # ── In-memory cache ────────────────────────────────────────────────────────────
 _cache: list[dict] = []
@@ -28,6 +36,24 @@ _alerts: list[str] = []
 _alerts_lock = threading.Lock()
 
 _AGENT_MODEL = "qwen2.5:7b"
+
+# ── Admin Auth ─────────────────────────────────────────────────────────────────
+
+def _admin_token() -> str | None:
+    """Return expected admin token derived from password, or None if auth is disabled."""
+    from vibe.config import load_global_config
+    password = (load_global_config().get("admin_password") or "").strip()
+    if not password:
+        return None
+    return hashlib.sha256(password.encode()).hexdigest()
+
+
+def _is_admin(request: Request) -> bool:
+    token = _admin_token()
+    if token is None:
+        return True  # No password configured → open access
+    return request.headers.get("X-Admin-Token") == token
+
 
 _DANGEROUS_PATTERNS = [
     "rm -rf /", "rm -rf ~", ":(){ :|:& };:", "mkfs", "dd if=/dev/zero",
@@ -161,7 +187,8 @@ def _http_check(hostname: str, timeout: float = 1.5) -> bool:
 
 
 def _enrich_domains(projects: list[dict]) -> list[dict]:
-    """Attach public_domain, public_ip, and HTTP-based is_running to each project's service.
+    """Attach public_domain, public_ip to each project's service.
+    is_running is already set correctly by collect_service (with health token check).
     Priority: vibe.yaml `domain` field > cloudflared port mapping."""
     port_to_host = _parse_cloudflared_tunnels()  # {port: hostname}
 
@@ -183,28 +210,18 @@ def _enrich_domains(projects: list[dict]) -> list[dict]:
     if not hostnames:
         return projects
 
-    # Resolve IPs and HTTP-check in parallel
+    # Resolve IPs in parallel (is_running already correct from collect_service)
     ip_map: dict[str, str] = {}
-    http_map: dict[str, bool] = {}
-    with ThreadPoolExecutor(max_workers=len(hostnames) * 2) as pool:
+    with ThreadPoolExecutor(max_workers=len(hostnames)) as pool:
         ip_futs = {pool.submit(_resolve_ip, h): h for h in hostnames}
-        http_futs = {pool.submit(_http_check, h): h for h in hostnames}
         for f in as_completed(ip_futs):
             ip_map[ip_futs[f]] = f.result()
-        for f in as_completed(http_futs):
-            http_map[http_futs[f]] = f.result()
 
     for p in projects:
         svc = p.get("service") or {}
         domain = svc.get("public_domain")
         if domain:
-            domain_ok = http_map.get(domain, False)
-            port_ok = svc.get("is_running", False)  # local port check from collect_service
-            updates: dict = {
-                "public_ip": ip_map.get(domain, ""),
-                "is_running": domain_ok or port_ok,  # domain reachable OR local port open
-            }
-            p["service"] = {**svc, **updates}
+            p["service"] = {**svc, "public_ip": ip_map.get(domain, "")}
     return projects
 
 
@@ -276,16 +293,51 @@ def _background_refresh():
         except Exception:
             pass
 
+@api.on_event("startup")
+def _on_startup():
+    global _cache, _cache_ts
+    from vibe.cache_db import init_db, load_projects
+    init_db()
+    cached, ts = load_projects()
+    if cached:
+        _cache, _cache_ts = cached, ts
+    threading.Thread(target=_background_refresh, daemon=True).start()
+    # Start session indexer
+    from vibe.history_db import init_db as history_init_db
+    from vibe.session_indexer import run_indexer
+    history_init_db()
+    threading.Thread(target=run_indexer, daemon=True).start()
+    # Start terminal monitor
+    from vibe.terminal_monitor import run_monitor
+    threading.Thread(target=run_monitor, daemon=True).start()
+
+def _mask_projects(projects: list[dict]) -> list[dict]:
+    """Remove sensitive cost/token fields and add _masked flag for non-admin responses."""
+    import copy
+    result = copy.deepcopy(projects)
+    _COST_KEYS = {"estimated_cost_usd", "input_tokens", "output_tokens",
+                  "cache_read_tokens", "cache_write_tokens"}
+    for p in result:
+        act = p.get("claude_activity") or {}
+        if any(k in act for k in _COST_KEYS):
+            for k in _COST_KEYS:
+                act.pop(k, None)
+            act["_masked"] = True
+            p["claude_activity"] = act
+    return result
+
+
 @api.get("/api/projects")
-def list_projects():
-    return get_all_projects()
+def list_projects(request: Request):
+    projects = get_all_projects()
+    return projects if _is_admin(request) else _mask_projects(projects)
 
 @api.get("/api/projects/{project_id}")
-def get_project(project_id: str):
+def get_project(request: Request, project_id: str):
     projects = get_all_projects()
     for p in projects:
         if p["id"] == project_id:
-            return p
+            return p if _is_admin(request) else _mask_projects([p])[0]
     raise HTTPException(status_code=404, detail="Project not found")
 
 @api.get("/api/projects/{project_id}/refresh")
@@ -323,7 +375,9 @@ def project_overview_page(project_id: str):
     return HTMLResponse(render_overview_page(info))
 
 @api.post("/api/refresh")
-def refresh_all():
+def refresh_all(request: Request):
+    if not _is_admin(request):
+        raise HTTPException(status_code=401, detail="需要管理员权限")
     return get_all_projects(force=True)
 
 @api.get("/api/projects/{project_id}/design-docs")
@@ -345,22 +399,36 @@ def get_design_doc(project_id: str, filename: str):
             raise HTTPException(status_code=404, detail="Design doc not found")
     raise HTTPException(status_code=404, detail="Project not found")
 
-@api.post("/api/projects/import")
-def import_project(body: dict):
-    """Add a project path to extra_projects in vibe.yaml."""
-    from vibe.config import add_extra_project
-    from vibe.aggregator import collect_project
-    proj_path = (body.get("path") or "").strip()
-    if not proj_path:
-        raise HTTPException(status_code=400, detail="path is required")
-    p = Path(proj_path).expanduser().resolve()
-    if not p.exists():
-        raise HTTPException(status_code=400, detail=f"Path does not exist: {p}")
-    if not (p / ".git").exists():
-        raise HTTPException(status_code=400, detail=f"Not a git repository: {p}")
-    add_extra_project(str(p))
-    info = collect_project(p, name=p.name, vibe_cfg=None)
-    return {"status": "ok", "project": info.model_dump()}
+
+@api.get("/api/projects/{project_id}/prompts")
+def get_project_prompts(project_id: str):
+    """Return prompts for a project from the global docs/prompts.md."""
+    import re as _re
+    prompts_file = Path(__file__).parent.parent / "docs" / "prompts.md"
+    if not prompts_file.exists():
+        return []
+    text = prompts_file.read_text(encoding="utf-8")
+    # Split by sections: ## Project Name {#id}
+    sections = _re.split(r'^## .+? \{#([\w-]+)\}', text, flags=_re.MULTILINE)
+    # sections: [preamble, id, content, id, content, ...]
+    i = 1
+    while i + 1 < len(sections):
+        if sections[i].strip() == project_id:
+            content = sections[i + 1]
+            entries = []
+            blocks = _re.split(r'^> \*\*([^*]+)\*\*', content, flags=_re.MULTILINE)
+            j = 1
+            while j + 1 < len(blocks):
+                date = blocks[j].strip()
+                body = blocks[j + 1]
+                lines = [_re.sub(r'^>\s?', '', line) for line in body.split('\n')]
+                prompt_text = '\n'.join(lines).strip().rstrip('…').strip()
+                if prompt_text:
+                    entries.append({"date": date, "text": prompt_text})
+                j += 2
+            return entries
+        i += 2
+    return []
 
 
 @api.get("/api/trending")
@@ -381,8 +449,10 @@ def github_trending(period: str = "weekly"):
 
 
 @api.delete("/api/projects/{project_id}")
-def delete_project(project_id: str):
+def delete_project(request: Request, project_id: str):
     """Hide a project from discovery by adding it to excluded_paths."""
+    if not _is_admin(request):
+        raise HTTPException(status_code=401, detail="需要管理员权限")
     from vibe.config import exclude_project
     projects = get_all_projects()
     for p in projects:
@@ -408,8 +478,10 @@ def _write_project_status(path: str, status: str):
 
 
 @api.patch("/api/projects/{project_id}/status")
-def set_project_status(project_id: str, body: dict):
+def set_project_status(request: Request, project_id: str, body: dict):
     """Change project status and persist to vibe.yaml."""
+    if not _is_admin(request):
+        raise HTTPException(status_code=401, detail="需要管理员权限")
     status = body.get("status")
     if status not in ("active", "paused", "done", "trash"):
         raise HTTPException(status_code=400, detail="invalid status")
@@ -423,8 +495,10 @@ def set_project_status(project_id: str, body: dict):
 
 
 @api.post("/api/projects/{project_id}/summarize")
-def summarize_project_endpoint(project_id: str, force: bool = False):
+def summarize_project_endpoint(request: Request, project_id: str, force: bool = False):
     """Generate and write AI summary for a single project."""
+    if not _is_admin(request):
+        raise HTTPException(status_code=401, detail="需要管理员权限")
     from vibe.summarizer import summarize_project
     projects = get_all_projects()
     for p in projects:
@@ -592,10 +666,126 @@ def _check_service_statuses() -> dict:
         p = Path(item["path"])
         try:
             svc = collect_service(p, item["vibe_config"])
-            result[p.name] = {"is_running": svc.is_running, "port": svc.port, "process_name": svc.process_name}
+            result[p.name] = {"is_running": svc.is_running, "port": svc.port,
+                               "process_name": svc.process_name, "domain_ok": svc.domain_ok}
         except Exception:
             result[p.name] = {"is_running": False, "port": None, "process_name": None}
     return result
+
+
+@api.get("/healthz")
+def healthz():
+    return {"status": "ok", "token": "mira-ok"}
+
+
+@api.get("/api/balance")
+def get_balance(request: Request, force: bool = False):
+    from .balance import fetch_all_balances
+    from .config import load_global_config
+    providers = fetch_all_balances(load_global_config(), force=force)
+    if _is_admin(request):
+        return {"providers": providers}
+    # Non-admin: keep structure, null out money fields
+    _MONEY_FIELDS = {"balance", "used", "topped", "granted", "limit", "total"}
+    masked = [{**p, **{f: None for f in _MONEY_FIELDS if f in p}, "_masked": True} for p in providers]
+    return {"providers": masked}
+
+
+@api.get("/api/balance/activity")
+def get_balance_activity(request: Request, force: bool = False):
+    from .balance import fetch_openrouter_activity
+    from .config import load_global_config
+    data = fetch_openrouter_activity(load_global_config(), force=force)
+    if _is_admin(request):
+        return {"openrouter": data}
+    # Non-admin: keep dates, zero amounts
+    masked = [{"date": r["date"], "cost_usd": 0} for r in (data or [])]
+    return {"openrouter": masked or None, "_masked": True}
+
+
+# ── Auth endpoints ─────────────────────────────────────────────────────────────
+
+@api.post("/api/auth/login")
+def auth_login(body: dict):
+    from vibe.config import load_global_config
+    password = (load_global_config().get("admin_password") or "").strip()
+    if not password:
+        return {"ok": True, "token": "no-auth"}
+    if (body.get("password") or "").strip() != password:
+        raise HTTPException(status_code=401, detail="密码错误")
+    return {"ok": True, "token": hashlib.sha256(password.encode()).hexdigest()}
+
+
+@api.get("/api/auth/check")
+def auth_check(request: Request):
+    return {"admin": _is_admin(request)}
+
+
+# ── Settings (API keys stored in vibe.yaml) ────────────────────────────────────
+_SETTINGS_KEYS = ["openrouter_api_key", "deepseek_api_key", "kimi_api_key"]
+
+@api.get("/api/settings")
+def get_settings(request: Request):
+    from .config import load_global_config
+    cfg = load_global_config()
+    result = {}
+    for k in _SETTINGS_KEYS:
+        v = cfg.get(k) or ""
+        if _is_admin(request):
+            result[k] = (v[:8] + "****") if len(v) > 8 else ("****" if v else "")
+        else:
+            result[k] = "****" if v else ""
+    # admin_password: always fully masked regardless of admin status
+    result["admin_password"] = "****" if cfg.get("admin_password") else ""
+    return result
+
+@api.post("/api/settings")
+def save_settings(request: Request, body: dict):
+    if not _is_admin(request):
+        raise HTTPException(status_code=401, detail="需要管理员权限")
+    import yaml
+    from pathlib import Path
+    cfg_path = Path(__file__).parent.parent / "vibe.yaml"
+    data = {}
+    if cfg_path.exists():
+        data = yaml.safe_load(cfg_path.read_text()) or {}
+    for k in _SETTINGS_KEYS:
+        if k in body:
+            v = (body[k] or "").strip()
+            if v and not v.endswith("****"):   # real value → save
+                data[k] = v
+            # empty → skip (keep existing key unchanged)
+    # admin_password: save if provided and not placeholder
+    if "admin_password" in body:
+        v = (body["admin_password"] or "").strip()
+        if v and v != "****":
+            data["admin_password"] = v
+    cfg_path.write_text(yaml.dump(data, allow_unicode=True, default_flow_style=False))
+    # invalidate balance cache with fresh config
+    from .balance import fetch_all_balances
+    from .config import load_global_config
+    fetch_all_balances(load_global_config(), force=True)
+    return {"ok": True}
+
+
+# ── History / Session Warehouse ────────────────────────────────────────────────
+
+@api.get("/api/history/search")
+def history_search(request: Request, q: str = "", limit: int = 20):
+    if not _is_admin(request):
+        raise HTTPException(status_code=401, detail="需要管理员权限")
+    if not q.strip():
+        return []
+    from vibe.history_db import search
+    return search(q.strip(), limit=limit)
+
+
+@api.get("/api/history/sessions")
+def history_sessions(request: Request, project_id: str = ""):
+    if not _is_admin(request):
+        raise HTTPException(status_code=401, detail="需要管理员权限")
+    from vibe.history_db import get_sessions
+    return get_sessions(project_id)
 
 
 @api.get("/api/alerts")
@@ -607,7 +797,9 @@ def get_alerts():
 
 
 @api.post("/api/chat")
-async def chat_endpoint(body: dict):
+async def chat_endpoint(request: Request, body: dict):
+    if not _is_admin(request):
+        raise HTTPException(status_code=401, detail="需要管理员权限")
     import json as _json
     import urllib.request as _ureq
     import asyncio as _asyncio
@@ -746,34 +938,14 @@ def summarize_cmd(
 def serve(
     port: int = typer.Option(None, help="Port to listen on (default: from vibe.yaml or 8888)"),
     host: str = typer.Option("127.0.0.1", help="Host to bind"),
+    reload: bool = typer.Option(False, "--reload", help="Enable auto-reload on file changes"),
 ):
     """Start the Vibe Manager web server."""
     from vibe.config import load_global_config
     cfg = load_global_config()
     actual_port = port if port is not None else cfg.get("port", 8888)
-    if STATIC_DIR.exists():
-        api.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
-
-        @api.get("/", response_class=FileResponse)
-        def index():
-            return FileResponse(str(STATIC_DIR / "index.html"))
-
-    # Load persisted cache from DB (instant), then refresh in background
-    from vibe.cache_db import init_db, load_projects
-    init_db()
-    cached, ts = load_projects()
-    if cached:
-        global _cache, _cache_ts
-        _cache, _cache_ts = cached, ts
-        typer.echo(f"Loaded {len(cached)} projects from DB cache. Refreshing in background...")
-        threading.Thread(target=_rebuild_and_persist, daemon=True).start()
-    else:
-        typer.echo("No DB cache found, building projects (first run)...")
-        threading.Thread(target=_rebuild_and_persist, daemon=True).start()
-
-    threading.Thread(target=_background_refresh, daemon=True).start()
-    typer.echo(f"Vibe Manager running at http://{host}:{actual_port}")
-    uvicorn.run(api, host=host, port=actual_port)
+    typer.echo(f"Vibe Manager running at http://{host}:{actual_port}" + (" (reload)" if reload else ""))
+    uvicorn.run("vibe.main:api", host=host, port=actual_port, reload=reload)
 
 app = cli
 
