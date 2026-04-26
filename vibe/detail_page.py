@@ -1,7 +1,8 @@
 """Full project detail page with tabs: 全局面貌 · 设计文档 · 计划."""
 
-def render_detail_page(project_id: str, project_name: str) -> str:
-    from vibe.topbar import topbar_css, topbar_html, settings_overlay_html, topbar_js
+def render_detail_page(project_id: str, project_name: str, inline_data: str = "null") -> str:
+    from vibe.topbar import theme_vars_css, topbar_css, topbar_html, settings_overlay_html, topbar_js
+    _theme_css   = theme_vars_css()
     _tb_css      = topbar_css()
     _tb_html     = topbar_html()   # no title/back — detail page has its own subnav
     _overlays    = settings_overlay_html()
@@ -13,53 +14,10 @@ def render_detail_page(project_id: str, project_name: str) -> str:
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{project_name} · Mira</title>
 <script>document.documentElement.dataset.theme = localStorage.getItem('mira-skin') || 'default';</script>
+<link rel="stylesheet" href="/static/fonts/fonts.css">
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+SC:wght@400;700&display=swap');
   *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
-  :root {{
-    --bg: #080c14; --panel: rgba(14,20,36,.95); --border: rgba(255,255,255,.07);
-    --text: #eef1f7; --sub: #7a8499; --muted: #4a5060;
-    --accent: #4f46e5;
-    --gold: #d9b36b; --gold-dim: rgba(217,179,107,.15); --gold-border: rgba(217,179,107,.3);
-    --blue: #4e9eff; --blue-dim: rgba(78,158,255,.12); --blue-border: rgba(78,158,255,.3);
-    --green: #5cd08a; --green-dim: rgba(92,208,138,.12); --green-border: rgba(92,208,138,.3);
-    --purple: #b07cff; --purple-dim: rgba(176,124,255,.12); --purple-border: rgba(176,124,255,.3);
-    --orange: #e5a650;
-    --red: #e06c75;
-    --mono: 'JetBrains Mono', monospace;
-    --sans: 'Noto Sans SC', sans-serif;
-    --radius: 8px; --radius-sm: 4px; --radius-pill: 20px;
-    --card-shadow: none;
-  }}
-  [data-theme="neon-pixel"] {{
-    --bg: #0a0a0a; --panel: rgba(20,20,20,.95); --border: #00ff00;
-    --text: #e0e0ff; --sub: #a0a0cc; --muted: #505070;
-    --accent: #ff00ff;
-    --gold: #ffff00; --gold-dim: rgba(255,255,0,.12); --gold-border: rgba(255,255,0,.3);
-    --blue: #00ffff; --blue-dim: rgba(0,255,255,.12); --blue-border: rgba(0,255,255,.3);
-    --green: #00ff00; --green-dim: rgba(0,255,0,.12); --green-border: rgba(0,255,0,.3);
-    --purple: #ff00ff; --purple-dim: rgba(255,0,255,.12); --purple-border: rgba(255,0,255,.3);
-    --orange: #ff8800; --red: #ff0040;
-    --radius: 0px; --radius-sm: 0px; --radius-pill: 0px;
-    --card-shadow: 2px 2px 0 var(--border);
-  }}
-  [data-theme="pixel-cyber"] {{
-    --bg: #020c1a; --panel: rgba(10,31,56,.95); --border: #00d4ff;
-    --text: #eef8ff; --sub: #a8daf0; --muted: #6bbad8;
-    --accent: #ff0055;
-    --gold: #ffaa00; --gold-dim: rgba(255,170,0,.12); --gold-border: rgba(255,170,0,.3);
-    --blue: #00d4ff; --blue-dim: rgba(0,212,255,.12); --blue-border: rgba(0,212,255,.3);
-    --green: #00ff88; --green-dim: rgba(0,255,136,.12); --green-border: rgba(0,255,136,.3);
-    --purple: #dd00ff; --purple-dim: rgba(221,0,255,.12); --purple-border: rgba(221,0,255,.3);
-    --orange: #ffaa00; --red: #ff3355;
-    --radius: 0px; --radius-sm: 0px; --radius-pill: 0px;
-    --card-shadow: 2px 2px 0 var(--border);
-  }}
-  [data-theme="pixel-cyber"] body {{
-    background-image: linear-gradient(rgba(0,212,255,0.04) 1px, transparent 1px),
-                      linear-gradient(90deg, rgba(0,212,255,0.04) 1px, transparent 1px);
-    background-size: 8px 8px;
-  }}
+{_theme_css}
   body {{ background: var(--bg); color: var(--text); font-family: var(--mono); min-height: 100vh; overflow-x: hidden; }}
 
 {_tb_css}
@@ -151,10 +109,46 @@ def render_detail_page(project_id: str, project_name: str) -> str:
     border-radius: 3px; cursor: pointer; font-family: var(--mono);
   }}
   .term-qbtn:hover {{ border-color: var(--accent); color: var(--accent); }}
+  /* ── ANSI 16-color palette ── */
+  :root {{
+    --ansi-k: #3a3f4b;
+    --ansi-r: var(--red);       --ansi-g: var(--green);
+    --ansi-y: var(--yellow);    --ansi-b: #4e9eff;
+    --ansi-m: #c792ea;          --ansi-c: #56b6c2;
+    --ansi-w: var(--text);      --ansi-K: var(--muted);
+    --ansi-R: var(--red);       --ansi-G: var(--green);
+    --ansi-Y: var(--orange);    --ansi-B: #82aaff;
+    --ansi-M: #d9a0f5;          --ansi-C: #89ddff;
+    --ansi-W: #ffffff;
+  }}
   .term-output {{
-    flex: 1; padding: 10px 14px; font-family: var(--mono);
-    font-size: 12px; line-height: 1.6; overflow-y: auto;
-    white-space: pre-wrap; word-break: break-all; color: var(--text);
+    flex: 1; overflow-y: auto; font-family: var(--mono);
+    font-size: 12px; background: var(--bg); color: var(--text); padding: 12px 0;
+  }}
+  .out-block {{
+    margin: 0 14px 10px; background: var(--panel);
+    border: 1px solid rgba(255,255,255,.04); border-radius: var(--radius); overflow: hidden;
+  }}
+  .out-line {{
+    display: flex; align-items: baseline;
+    min-height: 1.65em; line-height: 1.65; transition: background .08s;
+  }}
+  .out-line:hover {{ background: rgba(255,255,255,.04); }}
+  .out-ln {{
+    flex-shrink: 0; width: 3.4em; padding: 0 .7em 0 .6em;
+    text-align: right; color: var(--muted); font-size: .78em;
+    user-select: none; border-right: 1px solid rgba(255,255,255,.06);
+    line-height: 1.65; white-space: pre; background: rgba(0,0,0,.08);
+  }}
+  .out-code {{
+    flex: 1; min-width: 0; padding: 0 16px;
+    white-space: pre-wrap; word-break: break-all; line-height: 1.65;
+  }}
+  @media (max-width: 600px) {{
+    .term-output {{ font-size: 11px; padding: 8px 0; }}
+    .out-block {{ margin: 0 8px 8px; border-radius: var(--radius-sm); }}
+    .out-ln {{ width: 2.4em; font-size: .75em; padding: 0 .4em 0 .3em; }}
+    .out-code {{ padding: 0 10px; }}
   }}
   .term-inputbar {{
     padding: 8px 12px; border-top: 1px solid var(--border);
@@ -422,8 +416,6 @@ def render_detail_page(project_id: str, project_name: str) -> str:
     .topbar-title .logo-m {{ font-size: 20px; }}
     .topbar-title .logo-ira {{ font-size: 15px; }}
     .topbar-title .logo-cursor {{ font-size: 17px; }}
-    .skin-btn {{ font-size: 0 !important; }}
-    .skin-btn::before {{ content: '◈'; font-size: 15px; line-height: 1; }}
     .settings-btn {{ font-size: 0 !important; }}
     .settings-btn::before {{ content: '⚙\FE0E'; font-size: 15px; line-height: 1; }}
 
@@ -492,8 +484,8 @@ def render_detail_page(project_id: str, project_name: str) -> str:
   <span class="subnav-proj" id="proj-name">{project_name}</span>
   <div class="subnav-spacer"></div>
   <div class="subnav-tabs">
-    <button class="tab-btn active" id="tab-summary" onclick="showTab('summary')">概览</button>
-    <button class="tab-btn" id="tab-overview" onclick="showTab('overview')">系统架构</button>
+    <button class="tab-btn" id="tab-summary" onclick="showTab('summary')">概览</button>
+    <button class="tab-btn active" id="tab-overview" onclick="showTab('overview')">系统架构</button>
     <button class="tab-btn" id="tab-design" onclick="showTab('design')">设计文档</button>
     <button class="tab-btn" id="tab-prompts" onclick="showTab('prompts')">Prompts</button>
     <button class="tab-btn" id="tab-terminals" onclick="showTab('terminals')">⬛ 终端</button>
@@ -502,10 +494,10 @@ def render_detail_page(project_id: str, project_name: str) -> str:
 </div>
 
 <div class="content">
-  <div class="tab-panel active" id="panel-summary">
+  <div class="tab-panel" id="panel-summary">
     <div class="loading"><div class="spinner"></div>加载中...</div>
   </div>
-  <div class="tab-panel" id="panel-overview">
+  <div class="tab-panel active" id="panel-overview">
     <div class="loading"><div class="spinner"></div>加载中...</div>
   </div>
   <div class="tab-panel" id="panel-design">
@@ -541,8 +533,9 @@ def render_detail_page(project_id: str, project_name: str) -> str:
 
 <script>
 const PROJECT_ID = {repr(project_id)};
+window._INLINE_PROJECT = {inline_data};
 let projectData = null;
-let activeTab = 'summary';
+let activeTab = 'overview';
 let summaryLoaded = false;
 let overviewLoaded = false;
 let designLoaded = false;
@@ -580,6 +573,112 @@ function showTab(name) {{
 
 function escHtml(s) {{
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}}
+
+// ── ANSI renderer ─────────────────────────────────────────────────────────────
+const _FG = {{
+  30:'var(--ansi-k)', 31:'var(--ansi-r)', 32:'var(--ansi-g)', 33:'var(--ansi-y)',
+  34:'var(--ansi-b)', 35:'var(--ansi-m)', 36:'var(--ansi-c)', 37:'var(--ansi-w)',
+  90:'var(--ansi-K)', 91:'var(--ansi-R)', 92:'var(--ansi-G)', 93:'var(--ansi-Y)',
+  94:'var(--ansi-B)', 95:'var(--ansi-M)', 96:'var(--ansi-C)', 97:'var(--ansi-W)',
+}};
+const _BG = {{
+  40:'var(--ansi-k)', 41:'var(--ansi-r)', 42:'var(--ansi-g)', 43:'var(--ansi-y)',
+  44:'var(--ansi-b)', 45:'var(--ansi-m)', 46:'var(--ansi-c)', 47:'var(--ansi-w)',
+  100:'var(--ansi-K)', 101:'var(--ansi-R)', 102:'var(--ansi-G)', 103:'var(--ansi-Y)',
+  104:'var(--ansi-B)', 105:'var(--ansi-M)', 106:'var(--ansi-C)', 107:'var(--ansi-W)',
+}};
+function _256color(n) {{
+  if (n < 8)  return _FG[n + 30];
+  if (n < 16) return _FG[n + 82];
+  if (n < 232) {{
+    n -= 16;
+    const b = n % 6, g = Math.floor(n / 6) % 6, r = Math.floor(n / 36);
+    const c = v => v ? v * 40 + 55 : 0;
+    return 'rgb(' + c(r) + ',' + c(g) + ',' + c(b) + ')';
+  }}
+  const v = Math.round((n - 232) * 10.2 + 8);
+  return 'rgb(' + v + ',' + v + ',' + v + ')';
+}}
+function _ansiLine(line) {{
+  const RE = /\x1b\[([0-9;]*)([A-Za-z])/g;
+  let out = '', last = 0, spanOpen = false;
+  let fg = null, bg = null, bold = false, dim = false, ital = false, ul = false;
+  function _hasStyle() {{ return fg || bg || bold || dim || ital || ul; }}
+  function _close() {{ if (spanOpen) {{ out += '</span>'; spanOpen = false; }} }}
+  function _open() {{
+    if (spanOpen || !_hasStyle()) return;
+    const s = [];
+    if (fg)   s.push('color:' + fg);
+    if (bg)   s.push('background:' + bg);
+    if (bold) s.push('font-weight:700');
+    if (dim)  s.push('opacity:.55');
+    if (ital) s.push('font-style:italic');
+    if (ul)   s.push('text-decoration:underline');
+    out += '<span style="' + s.join(';') + '">';
+    spanOpen = true;
+  }}
+  let m;
+  while ((m = RE.exec(line)) !== null) {{
+    if (m.index > last) {{ _open(); out += escHtml(line.slice(last, m.index)); }}
+    last = RE.lastIndex;
+    if (m[2] !== 'm') continue;
+    _close();
+    const ps = m[1] ? m[1].split(';') : ['0'];
+    let i = 0;
+    while (i < ps.length) {{
+      const p = +ps[i] || 0;
+      if (p === 0)  {{ fg = bg = null; bold = dim = ital = ul = false; }}
+      else if (p === 1)  bold = true;
+      else if (p === 2)  dim  = true;
+      else if (p === 3)  ital = true;
+      else if (p === 4)  ul   = true;
+      else if (p === 22) {{ bold = false; dim = false; }}
+      else if (p === 23) ital = false;
+      else if (p === 24) ul   = false;
+      else if (_FG[p])   fg   = _FG[p];
+      else if (p === 38) {{
+        if (ps[i+1] === '5')      {{ fg = _256color(+ps[i+2]); i += 2; }}
+        else if (ps[i+1] === '2') {{ fg = 'rgb('+ps[i+2]+','+ps[i+3]+','+ps[i+4]+')'; i += 4; }}
+      }}
+      else if (p === 39) fg = null;
+      else if (_BG[p])   bg   = _BG[p];
+      else if (p === 48) {{
+        if (ps[i+1] === '5')      {{ bg = _256color(+ps[i+2]); i += 2; }}
+        else if (ps[i+1] === '2') {{ bg = 'rgb('+ps[i+2]+','+ps[i+3]+','+ps[i+4]+')'; i += 4; }}
+      }}
+      else if (p === 49) bg = null;
+      i++;
+    }}
+  }}
+  if (last < line.length) {{ _open(); out += escHtml(line.slice(last)); }}
+  _close();
+  return out;
+}}
+function _renderOutput(text) {{
+  if (!text || !text.trim()) return '';
+  const lines = text.split('\\n');
+  if (lines.length && lines[lines.length - 1] === '') lines.pop();
+  if (!lines.length) return '';
+  const chunks = [];
+  let cur = [];
+  lines.forEach(function(line) {{
+    if (line.trim() === '' && cur.length) {{ chunks.push(cur); cur = []; }}
+    else {{ cur.push(line); }}
+  }});
+  if (cur.length) chunks.push(cur);
+  let globalLine = 0;
+  const pad = String(lines.length).length;
+  return chunks.map(function(chunk) {{
+    const rows = chunk.map(function(line) {{
+      globalLine++;
+      return '<div class="out-line">' +
+        '<span class="out-ln">' + String(globalLine).padStart(pad, '\u00a0') + '</span>' +
+        '<span class="out-code">' + _ansiLine(line) + '</span>' +
+        '</div>';
+    }}).join('');
+    return '<div class="out-block">' + rows + '</div>';
+  }}).join('');
 }}
 
 function simpleMarkdown(md) {{
@@ -786,8 +885,17 @@ async function loadOverview() {{
   }}
 
 // ── Design Docs ───────────────────────────────────────────────────────────────
-function renderDesign() {{
+async function renderDesign() {{
   const el = document.getElementById('panel-design');
+  // design_docs is stripped from inline data to keep initial page small; fetch lazily.
+  if (projectData && !projectData.design_docs) {{
+    try {{
+      const res = await fetch(`/api/projects/${{PROJECT_ID}}`, {{headers: _authHeaders()}});
+      const full = await res.json();
+      projectData.design_docs = full.design_docs;
+      projectData.plans = full.plans;
+    }} catch(e) {{ /* non-fatal */ }}
+  }}
   const docs = (projectData && projectData.design_docs) || [];
   if (!docs.length) {{
     el.innerHTML = `<div class="empty-state"><div class="empty-icon">📐</div><div>暂无设计文档</div></div>`;
@@ -1209,7 +1317,8 @@ function _fetchTermOutput() {{
     .then(data => {{
       if (!data) return;
       const el = document.getElementById('term-output');
-      el.textContent = data.output || '';
+      const html = _renderOutput(data.output || '');
+      el.innerHTML = html || '<div style="padding:40px 16px;text-align:center;color:var(--muted);font-size:12px">等待输出…</div>';
       el.scrollTop = el.scrollHeight;
     }})
     .catch(() => {{}});
@@ -1252,8 +1361,12 @@ async function reload() {{
 // ─── Init ─────────────────────────────────────────────────────────────────────
 async function init() {{
   try {{
-    const res = await fetch(`/api/projects/${{PROJECT_ID}}`, {{headers: _authHeaders()}});
-    projectData = await res.json();
+    if (window._INLINE_PROJECT) {{
+      projectData = window._INLINE_PROJECT;
+    }} else {{
+      const res = await fetch(`/api/projects/${{PROJECT_ID}}`, {{headers: _authHeaders()}});
+      projectData = await res.json();
+    }}
     document.getElementById('proj-name').textContent = projectData.name || PROJECT_ID;
   }} catch(e) {{ /* non-fatal */ }}
 

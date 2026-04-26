@@ -216,6 +216,13 @@ body {
 .tab-btn:hover { background: rgba(255,255,255,0.05); color: var(--text); }
 .tab-btn.active { background: var(--accent); color: #fff; }
 .topbar-spacer { flex: 1; }
+.topbar-btn {
+  background: none; border: 1px solid var(--border); color: var(--text-sec);
+  font-size: 13px; font-weight: 500; padding: 5px 12px; border-radius: 6px;
+  cursor: pointer; transition: all .15s; font-family: inherit; line-height: 1;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.topbar-btn:hover { border-color: var(--accent); color: var(--accent); }
 .refresh-btn {
   background: rgba(var(--accent-rgb),0.15);
   border: 1px solid var(--accent);
@@ -1761,25 +1768,8 @@ body {
 .search-result-snippet mark { background: color-mix(in srgb, var(--yellow) 30%, transparent); color: var(--text); border-radius: 2px; padding: 0 2px; }
 .search-empty { text-align: center; color: var(--text-muted); padding: 20px; font-size: 13px; }
 
-/* ── Skin Picker ────────────────────────────────── */
-.skin-wrap { position: relative; }
-.skin-btn {
-  background: none; border: 1px solid var(--border); color: var(--text-muted);
-  font-size: 17px; padding: 5px 10px; border-radius: 6px; cursor: pointer; transition: all .15s; line-height: 1;
-}
-.skin-btn:hover { border-color: var(--accent); color: var(--accent); }
-.skin-picker {
-  display: none; position: fixed;
-  background: var(--card); border: 1px solid var(--border);
-  border-radius: 10px; padding: 10px; z-index: 9999;
-  box-shadow: 0 8px 32px rgba(0,0,0,.5); min-width: 180px;
-}
-.skin-picker.open { display: block; }
-.skin-picker-label {
-  font-size: 10px; color: var(--text-muted);
-  text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; padding: 0 2px;
-}
-.skin-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+/* ── Skin Picker (inside settings modal) ──────── */
+.skin-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .skin-card {
   border: 1px solid var(--border); border-radius: 7px;
   padding: 8px; cursor: pointer; transition: border-color .15s;
@@ -1787,7 +1777,7 @@ body {
 .skin-card:hover { border-color: var(--accent); }
 .skin-card.active { border-color: var(--accent); background: rgba(var(--accent-rgb), .1); }
 .skin-preview {
-  height: 32px; border-radius: 4px; overflow: hidden;
+  height: 28px; border-radius: 4px; overflow: hidden;
   display: grid; grid-template-columns: 1fr 1fr; margin-bottom: 6px;
 }
 .skin-preview div { height: 100%; }
@@ -1802,16 +1792,13 @@ body {
 <div class="topbar">
   <span class="topbar-title"><span class="logo-m">M</span><span class="logo-ira">IRA</span><span class="logo-cursor">_</span></span>
   <div class="topbar-spacer"></div>
-  <button class="tab-btn active" id="tab-projects" style="font-size:12px">Projects</button>
-  <a class="tab-btn" href="/dev" style="font-size:12px;text-decoration:none">Dev</a>
-  <a href="/stats" class="stats-nav-btn" id="stats-nav-btn" title="开发统计">📊 统计</a>
-  <button class="search-btn" id="search-btn" onclick="toggleSearch()" title="搜索历史">⌕</button>
-  <button class="chat-fab" id="chat-fab" onclick="toggleChat()" aria-label="打开 Mira 对话" style="position:relative">⌘<span id="anomaly-badge"></span></button>
-<button class="settings-btn" onclick="openSettings()" title="设置">⚙</button>
-  <div class="skin-wrap">
-    <button class="skin-btn" id="skin-btn" onclick="toggleSkinPicker()" aria-label="切换皮肤" title="切换皮肤">◈</button>
-    <div class="skin-picker" id="skin-picker"></div>
-  </div>
+  <a class="topbar-btn" href="/dev" title="进入开发模式" style="text-decoration:none">Dev</a>
+  <button class="topbar-btn" id="chat-fab" onclick="toggleChat()" aria-label="打开 Mira 对话" style="position:relative">⌘<span id="anomaly-badge"></span></button>
+  <button class="topbar-btn" onclick="openSettings()" title="设置">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block">
+      <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+    </svg>
+  </button>
 </div>
 
 <div id="toast-container"></div>
@@ -1826,7 +1813,9 @@ body {
 <!-- Settings Modal -->
 <div class="settings-overlay" id="settings-overlay" onclick="if(event.target===this)closeSettings()">
   <div class="settings-modal">
-    <div class="settings-title">⚙ 设置 — API Keys</div>
+    <div class="settings-title">⚙ 设置</div>
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px">外观</div>
+    <div class="skin-grid" id="settings-skin-grid" style="margin-bottom:18px"></div>
     <div class="settings-group">
       <div class="settings-label">OpenRouter API Key</div>
       <input class="settings-input" id="set-openrouter" type="password" placeholder="sk-or-..." autocomplete="off">
@@ -2364,8 +2353,8 @@ function renderCard(p) {
   const claudeMiniBlock = `
     <div class="card-claude-mini">
       <div class="card-claude-meta">
-        <div class="ccm-row"><span class="ccm-lbl">上次</span><span class="ccm-lbl">活跃</span><span class="ccm-lbl">30天会话</span></div>
-        <div class="ccm-row"><span class="ccm-val">${claudeLastStr}</span><span class="ccm-val">${ca ? (ca.active_hours||0) + 'h' : '—'}</span><span class="ccm-val">${ca ? ca.session_count_30d||0 : '—'}</span></div>
+        <div class="ccm-row"><span class="ccm-lbl">上次</span><span class="ccm-lbl">Token</span><span class="ccm-lbl">30天会话</span></div>
+        <div class="ccm-row"><span class="ccm-val">${claudeLastStr}</span><span class="ccm-val">${ca ? (ca._masked ? '***' : fmtTok((ca.input_tokens||0)+(ca.output_tokens||0)+(ca.cache_read_tokens||0))) : '—'}</span><span class="ccm-val">${ca ? ca.session_count_30d||0 : '—'}</span></div>
         <div class="ccm-row" style="margin-top:4px"><span class="ccm-lbl">输出</span><span class="ccm-lbl">输入</span><span class="ccm-lbl">Cache读</span></div>
         <div class="ccm-row"><span class="ccm-val">${ca ? (ca._masked ? '***' : fmtTok(ca.output_tokens||0)) : '—'}</span><span class="ccm-val">${ca ? (ca._masked ? '***' : fmtTok(ca.input_tokens||0)) : '—'}</span><span class="ccm-val">${ca ? (ca._masked ? '***' : fmtTok(ca.cache_read_tokens||0)) : '—'}</span></div>
       </div>
@@ -3510,44 +3499,6 @@ function applySkin(id) {
   localStorage.setItem('mira-skin', skin);
 }
 
-function renderSkinPicker() {
-  const picker = document.getElementById('skin-picker');
-  const current = document.documentElement.dataset.theme || 'default';
-  picker.innerHTML =
-    `<div class="skin-picker-label">选择皮肤</div>` +
-    `<div class="skin-grid">` +
-    SKINS.map(s =>
-      `<div class="skin-card ${s.id === current ? 'active' : ''}"
-            data-skin-id="${escHtml(s.id)}"
-            onclick="applySkin(this.dataset.skinId);toggleSkinPicker();">
-        <div class="skin-preview">
-          <div style="background:${s.preview[0]}"></div>
-          <div style="background:${s.preview[1]}"></div>
-        </div>
-        <div class="skin-name">${escHtml(s.name)}</div>
-      </div>`
-    ).join('') +
-    `</div>`;
-}
-
-function toggleSkinPicker() {
-  const picker = document.getElementById('skin-picker');
-  const open = picker.classList.toggle('open');
-  if (open) {
-    renderSkinPicker();
-    const btn = document.getElementById('skin-btn');
-    const rect = btn.getBoundingClientRect();
-    picker.style.top = (rect.bottom + 8) + 'px';
-    picker.style.right = (window.innerWidth - rect.right) + 'px';
-  }
-}
-
-document.addEventListener('click', e => {
-  if (!e.target.closest('.skin-wrap')) {
-    document.getElementById('skin-picker')?.classList.remove('open');
-  }
-});
-
 // Restore saved skin on load
 applySkin(localStorage.getItem('mira-skin') || 'default');
 
@@ -3565,7 +3516,20 @@ async function openSettings() {
   document.getElementById('set-admin-password').placeholder = data.admin_password ? '留空则不修改' : '未设置';
   const logoutBtn = document.getElementById('settings-logout-btn');
   if (logoutBtn) logoutBtn.style.display = (_isAdmin && _adminToken) ? '' : 'none';
+  _renderSettingsSkins();
   document.getElementById('settings-overlay').classList.add('open');
+}
+
+function _renderSettingsSkins() {
+  const current = document.documentElement.dataset.theme || 'default';
+  const grid = document.getElementById('settings-skin-grid');
+  if (!grid) return;
+  grid.innerHTML = SKINS.map(s =>
+    `<div class="skin-card ${s.id === current ? 'active' : ''}" onclick="applySkin('${s.id}');_renderSettingsSkins();">
+      <div class="skin-preview"><div style="background:${s.preview[0]}"></div><div style="background:${s.preview[1]}"></div></div>
+      <div class="skin-name">${escHtml(s.name)}</div>
+    </div>`
+  ).join('');
 }
 
 function closeSettings() {

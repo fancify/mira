@@ -24,7 +24,7 @@ def theme_vars_css(extra_vars: str = "") -> str:
         "    --accent: #4f46e5; --accent-rgb: 79,70,229;\n"
         "    --green: #3fb950; --orange: #e5a650; --red: #e06c75; --yellow: #d29922;\n"
         "    --mono: 'JetBrains Mono', monospace;\n"
-        "    --sans: 'Noto Sans SC', sans-serif;\n"
+        "    --sans: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;\n"
         "    --radius: 8px; --radius-sm: 4px;\n"
         + (f"    {extra_vars}\n" if extra_vars else "")
         + "  }\n"
@@ -95,12 +95,13 @@ def topbar_css() -> str:
     )
 
 
-def topbar_html(title: str = "", back_url: str = "") -> str:
+def topbar_html(title: str = "", back_url: str = "", hide_dev: bool = False) -> str:
     """The <div class="topbar"> element.
 
     Args:
-        title:    Page subtitle shown after the separator (e.g. "Dev", "Stats").
-        back_url: If given, shows a ← 返回 link pointing here.
+        title:    Page subtitle shown after the separator (e.g. "Stats").
+        back_url: If given, shows a ← 返回 link on the left side.
+        hide_dev: If True, hides the Dev button (use on the dev page itself).
     """
     parts = [
         '<div class="topbar">',
@@ -116,7 +117,10 @@ def topbar_html(title: str = "", back_url: str = "") -> str:
     parts.append('  <div class="topbar-spacer"></div>')
     if back_url:
         parts.append(f'  <a class="topbar-back" href="{back_url}">← 返回</a>')
+    if not hide_dev:
+        parts.append('  <a class="topbar-btn" href="/dev" title="进入开发模式" style="text-decoration:none">Dev</a>')
     parts += [
+        '  <button class="topbar-btn" onclick="window.location.href=\'/\'" title="MIRA 对话">⌘</button>',
         '  <button class="topbar-btn" onclick="openSettings()" title="设置">',
         '    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block">',
         '      <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>',

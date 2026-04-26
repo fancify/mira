@@ -2,7 +2,7 @@ import asyncio
 import hashlib
 import typer
 import uvicorn
-from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect, UploadFile, File
 from fastapi.responses import HTMLResponse, FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
@@ -41,7 +41,8 @@ if STATIC_DIR.exists():
 
     @api.get("/", response_class=FileResponse)
     def index():
-        return FileResponse(str(STATIC_DIR / "index.html"))
+        return FileResponse(str(STATIC_DIR / "index.html"),
+                            headers={"Cache-Control": "no-cache"})
 
 # ── In-memory cache ────────────────────────────────────────────────────────────
 _cache: list[dict] = []
@@ -397,25 +398,37 @@ def get_project(request: Request, project_id: str):
 def refresh_project(project_id: str):
     return get_project(project_id)
 
+_NC = {"Cache-Control": "no-store, no-cache, must-revalidate"}
+
 @api.get("/stats", response_class=HTMLResponse)
 def stats_page_route():
     from vibe.stats_page import render_stats_page
-    return HTMLResponse(render_stats_page())
+    return HTMLResponse(render_stats_page(), headers=_NC)
 
 
 @api.get("/dev", response_class=HTMLResponse)
 def dev_page_route():
     from vibe.dev_page import render_dev_page
-    return HTMLResponse(render_dev_page())
+    return HTMLResponse(render_dev_page(), headers=_NC)
 
 
 @api.get("/projects/{project_id}", response_class=HTMLResponse)
-def project_detail_page(project_id: str):
+def project_detail_page(request: Request, project_id: str):
+    import json as _json
     from vibe.detail_page import render_detail_page
     projects = get_all_projects()
     item = next((p for p in projects if p["id"] == project_id), None)
     name = item["name"] if item else project_id
-    return HTMLResponse(render_detail_page(project_id, name))
+    # Embed project data to avoid a second round-trip for /api/projects/{id}.
+    # Strip large lazy-loaded fields (design_docs, plans) — only needed on the design tab.
+    _LAZY_FIELDS = {"design_docs", "plans"}
+    if item:
+        masked = _mask_projects([item])[0] if not _is_admin(request) else item
+        slim = {k: v for k, v in masked.items() if k not in _LAZY_FIELDS}
+        inline_data = _json.dumps(slim, default=str)
+    else:
+        inline_data = "null"
+    return HTMLResponse(render_detail_page(project_id, name, inline_data), headers=_NC)
 
 @api.get("/projects/{project_id}/overview", response_class=HTMLResponse)
 def project_overview_page(project_id: str):
@@ -434,7 +447,7 @@ def project_overview_page(project_id: str):
 
     # Reuse cached collect_project data — no re-collection needed
     info = ProjectInfo(**item)
-    return HTMLResponse(render_overview_page(info))
+    return HTMLResponse(render_overview_page(info), headers=_NC)
 
 @api.post("/api/refresh")
 def refresh_all(request: Request):
@@ -1004,6 +1017,26 @@ def terminals_output(request: Request, target: str, lines: int = 200):
     except RuntimeError as e:
         raise HTTPException(status_code=400, detail=str(e))
     return {"target": target, "output": text}
+
+
+_UPLOAD_DIR = Path("/tmp/mira-uploads")
+
+@api.post("/api/upload/image")
+async def upload_image(request: Request, file: UploadFile = File(...)):
+    if not _is_admin(request):
+        raise HTTPException(status_code=401, detail="需要管理员权限")
+    ct = file.content_type or ""
+    if not ct.startswith("image/"):
+        raise HTTPException(status_code=400, detail="只接受图片文件")
+    content = await file.read()
+    if len(content) > 20 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="图片太大（最大 20MB）")
+    import uuid, mimetypes
+    _UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    ext = Path(file.filename or "img").suffix or (mimetypes.guess_extension(ct) or ".png")
+    dest = _UPLOAD_DIR / f"{uuid.uuid4().hex[:10]}{ext}"
+    dest.write_bytes(content)
+    return {"path": str(dest)}
 
 
 @api.post("/api/terminals/{target:path}/send")
