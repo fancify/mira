@@ -198,6 +198,58 @@ def upsert_daily_stats(
         )
 
 
+def get_prompts(project_id: str, limit: int = 200) -> list[dict]:
+    """Return user prompts for a project, most recent first."""
+    try:
+        with _conn() as conn:
+            rows = conn.execute(
+                """
+                SELECT m.content AS text, m.ts
+                FROM   messages m
+                JOIN   sessions s ON m.session_id = s.id
+                WHERE  s.project_id = ? AND m.role = 'user'
+                ORDER  BY m.ts DESC
+                LIMIT  ?
+                """,
+                (project_id, limit),
+            ).fetchall()
+        return [
+            {"text": r["text"], "date": str(r["ts"] // 1000)}
+            for r in rows
+        ]
+    except sqlite3.OperationalError:
+        return []
+
+
+def get_all_project_prompts(limit_per_project: int = 50) -> list[dict]:
+    """Return user prompts grouped by project."""
+    try:
+        with _conn() as conn:
+            rows = conn.execute(
+                """
+                SELECT s.project_id, s.project_name, m.content AS text, m.ts
+                FROM   messages m
+                JOIN   sessions s ON m.session_id = s.id
+                WHERE  m.role = 'user'
+                ORDER  BY s.project_id, m.ts DESC
+                """,
+            ).fetchall()
+    except sqlite3.OperationalError:
+        return []
+
+    from collections import defaultdict
+    grouped: dict[str, dict] = defaultdict(lambda: {"id": "", "name": "", "prompts": []})
+    for r in rows:
+        pid = r["project_id"]
+        entry = grouped[pid]
+        entry["id"] = pid
+        entry["name"] = r["project_name"] or pid
+        if len(entry["prompts"]) < limit_per_project:
+            entry["prompts"].append({"text": r["text"], "date": str(r["ts"] // 1000)})
+
+    return [v for v in grouped.values() if v["prompts"]]
+
+
 def get_stats(range_days: int = 30) -> dict:
     """Return aggregated daily stats and project rankings for the last range_days days."""
     from datetime import date as _date, timedelta

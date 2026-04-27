@@ -477,65 +477,16 @@ def get_design_doc(project_id: str, filename: str):
 
 @api.get("/api/projects/{project_id}/prompts")
 def get_project_prompts(project_id: str):
-    """Return prompts for a project from ~/.mira/prompts.md."""
-    import re as _re
-    prompts_file = Path.home() / ".mira" / "prompts.md"
-    if not prompts_file.exists():
-        return []
-    text = prompts_file.read_text(encoding="utf-8")
-    # Split by sections: ## Project Name {#id}
-    sections = _re.split(r'^## .+? \{#([\w-]+)\}', text, flags=_re.MULTILINE)
-    # sections: [preamble, id, content, id, content, ...]
-    i = 1
-    while i + 1 < len(sections):
-        if sections[i].strip() == project_id:
-            content = sections[i + 1]
-            entries = []
-            blocks = _re.split(r'^> \*\*([^*]+)\*\*', content, flags=_re.MULTILINE)
-            j = 1
-            while j + 1 < len(blocks):
-                date = blocks[j].strip()
-                body = blocks[j + 1]
-                lines = [_re.sub(r'^>\s?', '', line) for line in body.split('\n')]
-                prompt_text = '\n'.join(lines).strip().rstrip('…').strip()
-                if prompt_text:
-                    entries.append({"date": date, "text": prompt_text})
-                j += 2
-            return entries
-        i += 2
-    return []
+    """Return user prompts for a project from the session index DB."""
+    from vibe.history_db import get_prompts
+    return get_prompts(project_id)
 
 
 @api.get("/api/prompts")
 def get_all_prompts():
-    """Return all prompts grouped by project from ~/.mira/prompts.md."""
-    import re as _re
-    prompts_file = Path.home() / ".mira" / "prompts.md"
-    if not prompts_file.exists():
-        return {"projects": []}
-    text = prompts_file.read_text(encoding="utf-8")
-    # Split by sections: ## Project Name {#id}
-    sections = _re.split(r'^## (.+?) \{#([\w-]+)\}', text, flags=_re.MULTILINE)
-    # sections: [preamble, name, id, content, name, id, content, ...]
-    projects = []
-    i = 1
-    while i + 2 < len(sections):
-        name, pid, content = sections[i].strip(), sections[i + 1].strip(), sections[i + 2]
-        entries = []
-        blocks = _re.split(r'^> \*\*([^*]+)\*\*', content, flags=_re.MULTILINE)
-        j = 1
-        while j + 1 < len(blocks):
-            date = blocks[j].strip()
-            body = blocks[j + 1]
-            lines = [_re.sub(r'^>\s?', '', line) for line in body.split('\n')]
-            prompt_text = '\n'.join(lines).strip().rstrip('…').strip()
-            if prompt_text:
-                entries.append({"date": date, "text": prompt_text})
-            j += 2
-        if entries:
-            projects.append({"id": pid, "name": name, "prompts": entries})
-        i += 3
-    return {"projects": projects}
+    """Return user prompts grouped by project from the session index DB."""
+    from vibe.history_db import get_all_project_prompts
+    return {"projects": get_all_project_prompts()}
 
 
 @api.get("/api/trending")
