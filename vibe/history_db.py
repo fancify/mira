@@ -124,6 +124,16 @@ def get_sessions(project_id: str = "", limit: int = 100) -> list[dict]:
         return []
 
 
+def get_all_session_ids() -> set[str]:
+    """Return all session IDs already in the DB."""
+    try:
+        with _conn() as conn:
+            rows = conn.execute("SELECT id FROM sessions").fetchall()
+        return {r["id"] for r in rows}
+    except sqlite3.OperationalError:
+        return set()
+
+
 def search(query: str, limit: int = 20) -> list[dict]:
     if not query.strip():
         return []

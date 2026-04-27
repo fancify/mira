@@ -185,11 +185,35 @@ def index_file(path: Path, session_id: str, project_id: str, project_name: str) 
 
 
 def _find_jsonl_for_project(project_path: str):
-    """Yield all JSONL paths for a given project."""
+    """Yield all JSONL paths for a given project, including subagent files."""
     session_dir = CLAUDE_PROJECTS_DIR / _encode_path(project_path)
     if not session_dir.exists():
         return
     yield from session_dir.glob('*.jsonl')
+    yield from session_dir.glob('*/subagents/*.jsonl')
+
+
+def _all_jsonl_files_global() -> list[Path]:
+    """Return every JSONL file under ~/.claude/projects/, including subagents."""
+    if not CLAUDE_PROJECTS_DIR.exists():
+        return []
+    files = []
+    for proj_dir in CLAUDE_PROJECTS_DIR.iterdir():
+        if not proj_dir.is_dir():
+            continue
+        files.extend(proj_dir.glob('*.jsonl'))
+        files.extend(proj_dir.glob('*/subagents/*.jsonl'))
+    return files
+
+
+def _match_to_project(jsonl_path: Path, discovered: list[dict]) -> tuple[str, str]:
+    """Return (project_id, project_name) for a JSONL file, or ('unclassified', 'Other')."""
+    from vibe.collectors.claude_sessions import _session_touches_project
+    for item in discovered:
+        aliases = item.get('aliases') or []
+        if _session_touches_project(jsonl_path, item['path'], aliases=aliases):
+            return Path(item['path']).name, item['name']
+    return 'unclassified', 'Other'
 
 
 def run_indexer() -> None:
@@ -197,6 +221,7 @@ def run_indexer() -> None:
     import watchfiles
     from vibe.config import load_global_config
     from vibe.scanner import discover_projects
+    from vibe.history_db import get_all_session_ids
 
     cfg = load_global_config()
     discovered = discover_projects(
@@ -211,21 +236,31 @@ def run_indexer() -> None:
         project_id = Path(item['path']).name
         dir_to_project[encoded] = (project_id, item['name'])
 
-    # Initial scan — reuse dir_to_project values
+    # Pass 1: index project-specific dirs (fast path via known mapping)
     for item in discovered:
-        encoded = _encode_path(item['path'])
-        project_id, project_name = dir_to_project[encoded]
+        project_id, project_name = Path(item['path']).name, item['name']
         for jsonl_path in _find_jsonl_for_project(item['path']):
             try:
                 index_file(jsonl_path, jsonl_path.stem, project_id, project_name)
             except Exception as e:
                 logger.warning('Initial index failed for %s: %s', jsonl_path, e)
 
-    # Collect watch dirs that exist
+    # Pass 2: sweep ALL jsonl files, index anything not yet in DB
+    already_indexed = get_all_session_ids()
+    all_files = _all_jsonl_files_global()
+    unmatched = [f for f in all_files if f.stem not in already_indexed]
+    logger.info('Pass 2: %d unindexed JSONL files to process', len(unmatched))
+    for jsonl_path in unmatched:
+        try:
+            project_id, project_name = _match_to_project(jsonl_path, discovered)
+            index_file(jsonl_path, jsonl_path.stem, project_id, project_name)
+        except Exception as e:
+            logger.warning('Pass 2 index failed for %s: %s', jsonl_path, e)
+
+    # Collect ALL claude project dirs to watch (not just known projects)
     watch_dirs = [
-        str(CLAUDE_PROJECTS_DIR / enc)
-        for enc in dir_to_project
-        if (CLAUDE_PROJECTS_DIR / enc).exists()
+        str(d) for d in CLAUDE_PROJECTS_DIR.iterdir()
+        if d.is_dir()
     ]
 
     if not watch_dirs:
@@ -240,10 +275,12 @@ def run_indexer() -> None:
                 p = Path(changed_path)
                 if p.suffix != '.jsonl':
                     continue
+                # Try fast path first (known project dir)
                 parent_enc = p.parent.name
-                if parent_enc not in dir_to_project:
-                    continue
-                project_id, project_name = dir_to_project[parent_enc]
+                if parent_enc in dir_to_project:
+                    project_id, project_name = dir_to_project[parent_enc]
+                else:
+                    project_id, project_name = _match_to_project(p, discovered)
                 try:
                     index_file(p, p.stem, project_id, project_name)
                 except Exception as e:
