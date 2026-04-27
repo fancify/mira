@@ -17,7 +17,22 @@ A self-hosted project management dashboard that aggregates git status, running s
 
 - Python 3.11+
 - [uv](https://docs.astral.sh/uv/) (recommended) or pip
-- [tmux](https://github.com/tmux/tmux) — optional, required for the dev terminal feature
+- [tmux](https://github.com/tmux/tmux) — required for the dev terminal feature
+
+Install tmux:
+
+```bash
+# macOS
+brew install tmux
+
+# Ubuntu / Debian
+sudo apt install tmux
+
+# Arch
+sudo pacman -S tmux
+```
+
+Mira will start without tmux, but the terminal tab will be non-functional.
 
 ---
 
