@@ -857,8 +857,8 @@ function sendKeys() {
   // Inject image-reading instructions for all uploaded attachments
   const uploaded = _attachments.filter(function(a) { return a.path; });
   if (uploaded.length) {
-    const imgInstr = uploaded.map(function(a) { return '请读取图片文件: ' + a.path; }).join('\n');
-    text = imgInstr + (text ? '\n' + text : '');
+    const imgInstr = uploaded.map(function(a) { return '请读取图片文件: ' + a.path; }).join(' ');
+    text = imgInstr + (text ? ' ' + text : '');
   }
 
   _pendingSend = false;
@@ -893,7 +893,7 @@ document.getElementById('btn-enter').addEventListener('click', () => sendRaw('\n
 let _attachments = [];
 let _attachSeq = 0;
 
-async function _addAttachment(file, autoSend) {
+async function _addAttachment(file) {
   if (!file || !file.type.startsWith('image/')) return;
   const id = ++_attachSeq;
   const url = URL.createObjectURL(file);
@@ -915,10 +915,9 @@ async function _addAttachment(file, autoSend) {
     att.path = data.path;
     att.uploading = false;
     _renderAttachments();
-    if (autoSend || (_pendingSend && !_attachments.some(function(a) { return a.uploading; }))) {
+    _showAttachTip('图片已上传 ✓ 可以发送了');
+    if (_pendingSend && !_attachments.some(function(a) { return a.uploading; })) {
       sendKeys();
-    } else {
-      _showAttachTip('图片已上传 ✓ 可以发送了');
     }
   } catch(e) {
     console.warn('image upload failed:', e);
@@ -971,7 +970,7 @@ document.addEventListener('paste', function(e) {
   for (let i = 0; i < items.length; i++) {
     if (items[i].type.startsWith('image/')) {
       e.preventDefault();
-      _addAttachment(items[i].getAsFile(), true);
+      _addAttachment(items[i].getAsFile());
       return;
     }
   }
