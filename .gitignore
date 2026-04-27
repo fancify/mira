@@ -7,3 +7,4 @@ dist/
 *.egg-info/
 vibe.yaml
 
+docs/
