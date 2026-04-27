@@ -112,7 +112,7 @@ def render_dev_page() -> str:
   .out-block {
     margin: 0 14px 10px;
     background: var(--panel);
-    border: 1px solid var(--border);
+    border: 1px solid rgba(255,255,255,.04);
     border-radius: var(--radius);
     overflow: hidden;
   }
@@ -130,10 +130,10 @@ def render_dev_page() -> str:
     color: var(--muted);
     font-size: .78em;
     user-select: none;
-    border-right: 1px solid var(--border);
+    border-right: 1px solid rgba(255,255,255,.06);
     line-height: 1.65;
     white-space: pre;
-    background: rgba(0,0,0,.12);
+    background: rgba(0,0,0,.08);
   }
   .out-code {
     flex: 1; min-width: 0;
@@ -147,7 +147,7 @@ def render_dev_page() -> str:
   .out-block-syntax { display: flex; align-items: stretch; }
   .out-lang-gutter {
     flex-shrink: 0; width: 3.4em;
-    background: rgba(0,0,0,.12); border-right: 1px solid var(--border);
+    background: rgba(0,0,0,.08); border-right: 1px solid rgba(255,255,255,.06);
     display: flex; align-items: center; justify-content: center;
     padding: 10px 0;
     font-size: .78em; color: var(--muted);
