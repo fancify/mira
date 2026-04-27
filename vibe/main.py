@@ -825,7 +825,8 @@ def auth_login(body: dict):
 
 @api.get("/api/auth/check")
 def auth_check(request: Request):
-    return {"admin": _is_admin(request)}
+    token = _admin_token()
+    return {"admin": _is_admin(request), "auth_required": token is not None}
 
 
 # ── Settings (API keys stored in vibe.yaml) ────────────────────────────────────
