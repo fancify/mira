@@ -477,9 +477,9 @@ def get_design_doc(project_id: str, filename: str):
 
 @api.get("/api/projects/{project_id}/prompts")
 def get_project_prompts(project_id: str):
-    """Return prompts for a project from the global docs/prompts.md."""
+    """Return prompts for a project from ~/.mira/prompts.md."""
     import re as _re
-    prompts_file = Path(__file__).parent.parent / "docs" / "prompts.md"
+    prompts_file = Path.home() / ".mira" / "prompts.md"
     if not prompts_file.exists():
         return []
     text = prompts_file.read_text(encoding="utf-8")
@@ -508,9 +508,9 @@ def get_project_prompts(project_id: str):
 
 @api.get("/api/prompts")
 def get_all_prompts():
-    """Return all prompts grouped by project: {projects: [{id, name, prompts}]}."""
+    """Return all prompts grouped by project from ~/.mira/prompts.md."""
     import re as _re
-    prompts_file = Path(__file__).parent.parent / "docs" / "prompts.md"
+    prompts_file = Path.home() / ".mira" / "prompts.md"
     if not prompts_file.exists():
         return {"projects": []}
     text = prompts_file.read_text(encoding="utf-8")
