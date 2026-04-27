@@ -2,36 +2,48 @@
 
 A self-hosted project management dashboard that aggregates git status, running services, Claude AI session history, terminal output, and deployment info — all in one place.
 
-![Mira Dashboard](docs/screenshot.png)
+> **Screenshot coming soon**
 
 ## Features
 
 - **Project overview** — git branch, recent commits, open issues, service health
+- **System architecture** — LLM-generated architecture diagrams and module maps  
 - **Dev terminal** — attach to tmux sessions, send commands, view ANSI-colored output
-- **System architecture** — LLM-generated architecture diagrams and module maps
 - **Design docs** — plans, specs, and AI-generated summaries per project
 - **Multi-theme UI** — dark, neon-pixel, pixel-cyber skins
-- **Admin auth** — password-protected write operations and sensitive data
+- **Admin auth** — password-protected write operations and sensitive data views
+
+## Requirements
+
+- Python 3.11+
+- [uv](https://docs.astral.sh/uv/) (recommended) or pip
+- [tmux](https://github.com/tmux/tmux) — optional, required for the dev terminal feature
+
+---
 
 ## Quick Start
 
 ### Option 1 — Direct (uv)
 
-**Requirements:** Python 3.11+, [uv](https://docs.astral.sh/uv/)
-
 ```bash
 git clone https://github.com/simplelost-chao/mira.git
 cd mira
 
-# Create your config from the example
+# Create your config
 cp vibe.example.yaml vibe.yaml
-# Edit vibe.yaml: set scan_dirs, admin_password, and optionally API keys
+# Edit vibe.yaml — set scan_dirs and admin_password at minimum
 
 uv sync
 uv run vibe serve
 ```
 
 Open [http://localhost:8888](http://localhost:8888).
+
+For development with auto-reload:
+
+```bash
+uv run vibe serve --reload
+```
 
 ---
 
@@ -49,38 +61,133 @@ docker compose up -d
 
 Open [http://localhost:8888](http://localhost:8888).
 
-> **Note:** Edit the `volumes:` in `docker-compose.yml` to mount the directories you want Mira to scan.
+Edit `docker-compose.yml` to mount the directories you want Mira to scan:
+
+```yaml
+volumes:
+  - ./vibe.yaml:/app/vibe.yaml:ro
+  - ~/projects:/home/user/projects:ro          # add your project dirs here
+  - ~/Documents/Projects:/home/user/docs:ro
+```
+
+Then update `scan_dirs` in `vibe.yaml` to match the container paths:
+
+```yaml
+scan_dirs:
+  - /home/user/projects
+  - /home/user/docs
+```
 
 ---
 
 ## Configuration
 
-All config lives in `vibe.yaml` (gitignored). See [`vibe.example.yaml`](vibe.example.yaml) for a fully-commented template.
+All config lives in `vibe.yaml` (gitignored — never committed). See [`vibe.example.yaml`](vibe.example.yaml) for a fully-commented template.
 
 | Field | Required | Description |
 |---|---|---|
-| `scan_dirs` | yes | Directories to scan for projects |
-| `admin_password` | recommended | Protects write ops; leave empty to disable |
-| `port` | no | Port to listen on (default `8888`) |
-| `openrouter_api_key` | no | For AI-powered project summaries |
+| `scan_dirs` | **yes** | Directories to scan for projects |
+| `admin_password` | recommended | Protects write ops and sensitive data; leave empty to disable auth |
+| `port` | no | Port to listen on (default: `8888`) |
+| `openrouter_api_key` | no | For AI-powered project summaries (via OpenRouter) |
 | `deepseek_api_key` | no | Alternative LLM provider |
 | `kimi_api_key` | no | Alternative LLM provider |
-| `exclude` | no | File/folder patterns to skip (default: `node_modules`, `.venv`, `__pycache__`) |
-| `excluded_paths` | no | Absolute paths to hide from scanning |
-| `base_services` | no | Shared services shown in the services panel |
+| `exclude` | no | File/folder patterns to skip inside each project |
+| `excluded_paths` | no | Absolute paths to hide from project discovery |
+| `base_services` | no | Shared services displayed in the services panel |
 
 ### Per-project config
 
-Drop a `vibe.yaml` in any project root to customize how it appears:
+Drop a `vibe.yaml` in any project root to control how it appears in Mira:
 
 ```yaml
 name: my-app
 description: What this project does
-domain: my-app.example.com
+domain: my-app.example.com   # public URL if exposed
+
 service:
   port: 3000
   health_path: /healthz
-  health_token: my-ok
+  health_token: my-ok        # expected response token from health endpoint
+```
+
+---
+
+## Run on Login (macOS)
+
+Create a launchd plist to start Mira automatically:
+
+```bash
+cat > ~/Library/LaunchAgents/mira.vibe.plist << 'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>mira.vibe</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/bin/uv</string>
+        <string>run</string>
+        <string>vibe</string>
+        <string>serve</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>/path/to/mira</string>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/tmp/mira.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/mira.err.log</string>
+</dict>
+</plist>
+EOF
+
+# Replace /path/to/mira and /usr/local/bin/uv with your actual paths
+# Find uv path with: which uv
+
+launchctl load ~/Library/LaunchAgents/mira.vibe.plist
+```
+
+To restart after config changes:
+
+```bash
+launchctl stop mira.vibe && launchctl start mira.vibe
+```
+
+---
+
+## Run as a Service (Linux / systemd)
+
+```bash
+sudo tee /etc/systemd/system/mira.service << 'EOF'
+[Unit]
+Description=Mira project dashboard
+After=network.target
+
+[Service]
+Type=simple
+User=YOUR_USER
+WorkingDirectory=/path/to/mira
+ExecStart=/home/YOUR_USER/.local/bin/uv run vibe serve
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo systemctl daemon-reload
+sudo systemctl enable --now mira
+```
+
+View logs:
+
+```bash
+journalctl -u mira -f
 ```
 
 ---
@@ -90,21 +197,26 @@ service:
 To access Mira from anywhere without opening firewall ports:
 
 ```bash
-# Install cloudflared: https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/
+# One-off (temporary URL printed to stdout)
 cloudflared tunnel --url http://localhost:8888
 ```
 
-For a permanent tunnel, follow the [Cloudflare Tunnel docs](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/).
+For a permanent named tunnel, follow the [Cloudflare Tunnel docs](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/).
 
 ---
 
-## CLI Commands
+## CLI Reference
 
 ```bash
-vibe serve          # Start the dashboard server
-vibe add <path>     # Add a project to the dashboard
-vibe remove <path>  # Remove a project
-vibe term <name>    # Attach to a project's tmux session
+vibe serve                        # Start the dashboard (binds to 127.0.0.1:8888)
+vibe serve --host 0.0.0.0         # Bind to all interfaces (for remote/Docker access)
+vibe serve --port 9000            # Custom port
+vibe serve --reload               # Auto-reload on file changes (dev mode)
+
+vibe term <project>               # Open a tmux session for a project and attach it to Mira
+vibe term <project> --cmd "npm run dev"   # Run a specific command in that session
+
+vibe summarize                    # Generate AI summaries for all discovered projects
 ```
 
 ---
@@ -114,7 +226,9 @@ vibe term <name>    # Attach to a project's tmux session
 - **Backend:** Python / FastAPI / uvicorn
 - **Frontend:** Vanilla JS + CSS (no build step)
 - **Data:** YAML config + SQLite cache
-- **AI:** OpenRouter / DeepSeek / Kimi (optional)
+- **AI summaries:** OpenRouter / DeepSeek / Kimi (all optional)
+
+---
 
 ## License
 
