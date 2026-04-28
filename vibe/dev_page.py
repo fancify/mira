@@ -58,9 +58,13 @@ def render_dev_page() -> str:
   .term-pane-info { min-width: 0; flex: 1; }
   .term-pane-name { font-size: 12px; color: var(--text); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 6px; }
   .term-pane-name-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-  .term-pane-pencil { opacity: 0; font-size: 10px; color: var(--muted); cursor: pointer; padding: 0 2px; transition: opacity .15s; }
-  .term-pane-row:hover .term-pane-pencil { opacity: 0.6; }
-  .term-pane-pencil:hover { opacity: 1 !important; color: var(--accent); }
+  .term-pane-pencil {
+    opacity: 0; font-size: 14px; color: var(--sub); cursor: pointer;
+    padding: 2px 6px; transition: opacity .12s, color .12s, background .12s;
+    border-radius: 3px; line-height: 1; flex-shrink: 0;
+  }
+  .term-pane-row:hover .term-pane-pencil { opacity: 1; }
+  .term-pane-pencil:hover { color: var(--accent); background: rgba(var(--accent-rgb,99,179,237), 0.1); }
   .term-pane-name-input { flex: 1; min-width: 0; background: var(--bg); border: 1px solid var(--accent); border-radius: 3px; color: var(--text); font-family: inherit; font-size: 12px; font-weight: 600; padding: 1px 4px; outline: none; }
   .term-pane-sub  { font-size: 10px; color: var(--sub); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .term-empty-sidebar { padding: 32px 16px; font-size: 12px; color: var(--muted); line-height: 1.8; }
@@ -251,7 +255,10 @@ async function startRename(pencilEl) {
         headers: _authHeaders({'Content-Type': 'application/json'}),
         body: JSON.stringify({ name: newName }),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        const detail = await res.text().catch(() => '');
+        throw new Error(`HTTP ${res.status} ${detail}`);
+      }
     } catch(e) {
       alert('重命名失败: ' + e.message);
     }

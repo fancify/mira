@@ -1019,10 +1019,10 @@ def update_project_name(project_id: str, request: Request, body: dict):
     cfg["name"] = new_name
     with open(yaml_path, "w") as f:
         yaml.safe_dump(cfg, f, allow_unicode=True, sort_keys=False)
-    # Invalidate cache so name shows up immediately
-    global _cache, _cache_ts
-    with _cache_lock:
-        _cache_ts = 0
+    # Force-rebuild cache synchronously so the next request sees the new name.
+    # (Just zeroing _cache_ts isn't enough — get_all_projects returns stale
+    # cache and only triggers a background refresh.)
+    get_all_projects(force=True)
     return {"ok": True, "name": new_name}
 
 
