@@ -28,17 +28,29 @@ def _tmux_bin() -> str:
     return shutil.which("tmux") or "/opt/homebrew/bin/tmux"
 
 def _start_ttyd() -> None:
+    """Start ttyd subprocess. Uses admin_password as HTTP basic auth (admin:<pwd>).
+
+    Without admin_password set, ttyd is wide open — only safe on localhost/tailnet.
+    With it set, every request to /terminal/ requires Authorization header.
+    """
     global _ttyd_proc
     ttyd = _ttyd_bin()
     tmux = _tmux_bin()
     if not Path(ttyd).exists():
         return
+
+    from vibe.config import load_global_config
+    pwd = (load_global_config().get("admin_password") or "").strip()
+
     cmd = [
         ttyd, "-p", str(_TTYD_PORT),
         "--writable",
         "--base-path", "/terminal",
-        tmux, "new-session", "-A", "-s", "mira", "-c", str(Path.home()),
     ]
+    if pwd:
+        cmd += ["--credential", f"admin:{pwd}"]
+    cmd += [tmux, "new-session", "-A", "-s", "mira", "-c", str(Path.home())]
+
     _ttyd_proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 def _watch_ttyd() -> None:
