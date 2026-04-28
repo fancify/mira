@@ -229,8 +229,10 @@ async function selectPane(target, cmd) {
 }
 
 function showTerminal() {
+  const frame = document.getElementById('ttyd-frame');
+  if (!frame.src) frame.src = '/terminal/';   // lazy-load on first show
   document.getElementById('term-placeholder').style.display = 'none';
-  document.getElementById('ttyd-frame').classList.add('visible');
+  frame.classList.add('visible');
 }
 
 function showPlaceholder() {
@@ -255,9 +257,7 @@ async function newWindow(cwd) {
 async function init() {
   await _initAuth();
   if (!_isAdmin) { openLoginModal(init); return; }
-  // Load ttyd iframe immediately (background, so it's ready when user clicks a pane)
-  const frame = document.getElementById('ttyd-frame');
-  frame.src = '/terminal/';
+  // ttyd iframe is loaded lazily on first pane click (avoids basic-auth dialog on page load)
   await loadPanes();
   setInterval(loadPanes, 5000);
   _bgPoll();
