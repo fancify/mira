@@ -1671,6 +1671,19 @@ body {
 }
 
 /* ── API Balance ─────────────────────────────────── */
+.balance-card.collapsed {
+  cursor: pointer;
+}
+.balance-card.collapsed .balance-card-details { display: none; }
+.balance-card.collapsed .balance-card-spark   { display: none; }
+.balance-card.collapsed .balance-divider:not(.balance-divider-primary) { display: none; }
+.balance-card.collapsed .balance-stat:not(.balance-stat-primary) { display: none; }
+.balance-card:not(.collapsed) { cursor: pointer; }
+.balance-card-toggle {
+  font-size: 11px; color: var(--text-muted); margin-left: auto;
+  user-select: none; transition: transform .15s;
+}
+.balance-card:not(.collapsed) .balance-card-toggle { transform: rotate(180deg); }
 .balance-card {
   display: flex; align-items: center; gap: 12px;
   background: var(--card); border: 1px solid var(--border);
@@ -1870,7 +1883,7 @@ body {
 <!-- MAIN PAGE -->
 <div id="panel-overview" style="padding: 0 28px 48px" class="main-page">
   <div class="kpi-row" id="kpi-row" style="margin-top:24px"></div>
-  <div id="balance-row" style="display:none;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px"></div>
+  <div id="balance-row" style="display:none;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:16px"></div>
   <div class="filter-bar">
     <button class="filter-btn" id="filter-all" onclick="setFilter('all', this)">全部 <span class="filter-count" id="count-all">0</span></button>
     <button class="filter-btn active" id="filter-active" onclick="setFilter('active', this)">Active <span class="filter-count" id="count-active">0</span></button>
@@ -3706,7 +3719,7 @@ function renderBalanceCard(p, activity = null) {
   } else {
     if (p.balance != null) {
       const cls = p.balance < 1 ? 'empty' : p.balance < 5 ? 'low' : '';
-      stats += `<div class="balance-stat"><div class="balance-val ${cls}">${fmtMoney(p.balance, u)}</div><div class="balance-lbl">余额</div></div>`;
+      stats += `<div class="balance-stat balance-stat-primary"><div class="balance-val ${cls}">${fmtMoney(p.balance, u)}</div><div class="balance-lbl">余额</div></div>`;
     }
     if (p.topped != null) {
       stats += `<div class="balance-divider"></div>`;
@@ -3752,7 +3765,7 @@ function renderBalanceCard(p, activity = null) {
   }
 
   const sparkHtml = `
-    <div style="border-top:1px solid var(--border);margin-top:8px;padding-top:8px">
+    <div class="balance-card-spark" style="border-top:1px solid var(--border);margin-top:8px;padding-top:8px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
         <span style="font-size:9px;color:var(--text-muted);letter-spacing:.5px;text-transform:uppercase">30天消耗</span>
         <span style="font-size:11px;font-weight:700;color:var(--text-sec)">${totalStr}</span>
@@ -3760,11 +3773,12 @@ function renderBalanceCard(p, activity = null) {
       <div style="display:flex;align-items:flex-end;gap:1px;height:34px">${bars}</div>
     </div>`;
 
-  return `<div class="balance-card" style="flex-direction:column;align-items:stretch">
+  return `<div class="balance-card collapsed" style="flex-direction:column;align-items:stretch" onclick="this.classList.toggle('collapsed'); event.stopPropagation();">
     <div style="display:flex;align-items:center;gap:12px">
       <div class="balance-logo">${escHtml(p.name)}</div>
-      <div class="balance-divider"></div>
-      ${stats || `<div class="balance-stat"><div class="balance-val">—</div><div class="balance-lbl">暂无数据</div></div>`}
+      <div class="balance-divider balance-divider-primary"></div>
+      ${stats || `<div class="balance-stat balance-stat-primary"><div class="balance-val">—</div><div class="balance-lbl">暂无数据</div></div>`}
+      <span class="balance-card-toggle">▼</span>
     </div>
     ${sparkHtml}
   </div>`;

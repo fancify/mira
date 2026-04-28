@@ -145,7 +145,7 @@ def settings_overlay_html() -> str:
     <input id="set-openrouter" type="password" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:12px;outline:none;margin-bottom:12px;box-sizing:border-box;font-family:var(--mono)">
     <div style="font-size:11px;color:var(--muted);margin-bottom:6px">DeepSeek API Key</div>
     <input id="set-deepseek" type="password" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:12px;outline:none;margin-bottom:12px;box-sizing:border-box;font-family:var(--mono)">
-    <div style="font-size:11px;color:var(--muted);margin-bottom:6px">Kimi API Key</div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:6px">Kimi API Key <span style="color:var(--sub);font-size:10px">(moonshot.cn)</span></div>
     <input id="set-kimi" type="password" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:12px;outline:none;margin-bottom:12px;box-sizing:border-box;font-family:var(--mono)">
     <div style="font-size:11px;color:var(--muted);margin-bottom:6px">管理员密码</div>
     <input id="set-admin-password" type="password" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:12px;outline:none;margin-bottom:18px;box-sizing:border-box;font-family:var(--mono)">
