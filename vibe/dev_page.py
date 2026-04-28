@@ -85,8 +85,37 @@ def render_dev_page() -> str:
   }
   #ttyd-frame.visible { display: block; }
 
+  /* ── Mobile detail header (replaces topbar when a pane is open) ── */
+  .term-detail-header { display: none; }
+
   /* ── Mobile ── */
   @media (max-width: 900px) {
+    /* When a pane is open on mobile, hide MIRA topbar entirely
+       and surface a project-specific header inside .term-main */
+    .dev-page.detail-open ~ .topbar,
+    body:has(.dev-page.detail-open) .topbar { display: none !important; }
+    .dev-page.detail-open { height: 100dvh; }
+
+    .term-detail-header {
+      display: flex; align-items: center; gap: 10px;
+      height: 48px; padding: 0 12px; flex-shrink: 0;
+      background: var(--panel); border-bottom: 1px solid var(--border);
+    }
+    .term-detail-back {
+      background: none; border: 1px solid var(--border);
+      border-radius: 6px; color: var(--text);
+      padding: 6px 10px; font-size: 14px; cursor: pointer;
+      line-height: 1; flex-shrink: 0;
+    }
+    .term-detail-back:active { background: var(--bg); }
+    .term-detail-title {
+      font-size: 15px; font-weight: 600; color: var(--text);
+      flex: 1; min-width: 0;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    /* Hide desktop term-detail-header by default; it only shows on mobile */
+    .dev-page:not(.detail-open) .term-detail-header { display: none; }
+
     .dev-page { height: calc(100dvh - 48px); }
     .term-sidebar { width: 100%; flex: 1; border-right: none; }
     .term-sidebar-header { padding: 14px 16px 10px; font-size: 11px; letter-spacing: .5px; text-transform: none; font-weight: 700; }
@@ -279,9 +308,17 @@ async function startRename(pencilEl) {
 // ── Pane selection ────────────────────────────────────────────────────────────
 async function selectPane(target, cmd) {
   _currentTarget = target;
-  document.querySelectorAll('.term-pane-row').forEach(r =>
-    r.classList.toggle('active', r.dataset.target === target));
+  const rows = document.querySelectorAll('.term-pane-row');
+  rows.forEach(r => r.classList.toggle('active', r.dataset.target === target));
   document.getElementById('dev-page').classList.add('detail-open');
+
+  // Update mobile detail header title with project_name from the row
+  const activeRow = document.querySelector(`.term-pane-row[data-target="${CSS.escape(target)}"]`);
+  const titleEl = document.getElementById('term-detail-title');
+  if (activeRow && titleEl) {
+    const txt = activeRow.querySelector('.term-pane-name-text');
+    titleEl.textContent = txt ? txt.textContent : target;
+  }
 
   // Tell tmux to switch to this pane
   try {
@@ -347,7 +384,7 @@ init();
         + topbar_css()
         + page_css
         + "</style>\n</head>\n<body>\n\n"
-        + topbar_html(title="Dev", back_url="javascript:history.back()", hide_dev=True) + "\n\n"
+        + topbar_html(title="Dev", hide_dev=True) + "\n\n"
         + """\
 <div class="dev-page" id="dev-page">
   <!-- Sidebar: pane list -->
@@ -363,6 +400,11 @@ init();
 
   <!-- Main: ttyd iframe -->
   <div class="term-main">
+    <!-- Mobile-only header (back to list + project name) -->
+    <div class="term-detail-header" id="term-detail-header">
+      <button class="term-detail-back" onclick="showPlaceholder()" title="返回列表">← 列表</button>
+      <span class="term-detail-title" id="term-detail-title">终端</span>
+    </div>
     <div id="term-placeholder" class="term-placeholder">
       <div style="font-size:28px;opacity:.3">⬛</div>
       <div>从左侧选择一个终端</div>
