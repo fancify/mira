@@ -123,15 +123,17 @@ def _poll_once() -> None:
                 None if pane["target"] in tracked_targets
                 else _match_project(pane["cwd"])
             )
-            new_entries[pane["target"]] = (pane, project_id)
+            # Display "claude" instead of "node" when this is a claude pane
+            display_cmd = "claude" if is_claude else pane["command"]
+            new_entries[pane["target"]] = (pane, project_id, display_cmd)
 
     with _monitor_lock:
-        for target, (pane, project_id) in new_entries.items():
+        for target, (pane, project_id, display_cmd) in new_entries.items():
             if target not in _monitored:
                 _monitored[target] = {
                     "target": pane["target"],
-                    "label": f"{pane['command']}/{Path(pane['cwd']).name}",
-                    "command": pane["command"],
+                    "label": f"{display_cmd}/{Path(pane['cwd']).name}",
+                    "command": display_cmd,
                     "cwd": pane["cwd"],
                     "auto": True,
                     "project_id": project_id,
