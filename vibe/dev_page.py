@@ -56,9 +56,13 @@ def render_dev_page() -> str:
   .term-pane-dot.error    { background: var(--red); }
   @keyframes pane-pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
   .term-pane-info { min-width: 0; flex: 1; }
-  .term-pane-name { font-size: 12px; color: var(--text); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .term-pane-proj { font-size: 10px; color: var(--sub); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .term-pane-cmd  { font-size: 9px; color: var(--muted); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .term-pane-name { font-size: 12px; color: var(--text); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 6px; }
+  .term-pane-name-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .term-pane-pencil { opacity: 0; font-size: 10px; color: var(--muted); cursor: pointer; padding: 0 2px; transition: opacity .15s; }
+  .term-pane-row:hover .term-pane-pencil { opacity: 0.6; }
+  .term-pane-pencil:hover { opacity: 1 !important; color: var(--accent); }
+  .term-pane-name-input { flex: 1; min-width: 0; background: var(--bg); border: 1px solid var(--accent); border-radius: 3px; color: var(--text); font-family: inherit; font-size: 12px; font-weight: 600; padding: 1px 4px; outline: none; }
+  .term-pane-sub  { font-size: 10px; color: var(--sub); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .term-empty-sidebar { padding: 32px 16px; font-size: 12px; color: var(--muted); line-height: 1.8; }
   .term-empty-sidebar code { color: var(--sub); }
 
@@ -190,12 +194,15 @@ async function loadPanes() {
       const st = _paneState[p.target] || 'inactive';
       return `<div class="term-pane-row${_currentTarget === p.target ? ' active' : ''}"
            data-target="${escHtml(p.target)}"
-           data-cmd="${escHtml(p.command || '')}">
+           data-cmd="${escHtml(p.command || '')}"
+           data-project-id="${escHtml(p.project_id || '')}">
         <div class="term-pane-dot ${st}"></div>
         <div class="term-pane-info">
-          <div class="term-pane-name">${escHtml(p.label)}</div>
-          <div class="term-pane-proj">${escHtml(p.project_id || p.target)}</div>
-          ${p.command ? `<div class="term-pane-cmd">${escHtml(p.command)}</div>` : ''}
+          <div class="term-pane-name">
+            <span class="term-pane-name-text">${escHtml(p.project_name || p.project_id || p.target)}</span>
+            <span class="term-pane-pencil" title="重命名" onclick="event.stopPropagation(); startRename(this);">✎</span>
+          </div>
+          <div class="term-pane-sub">${escHtml(p.label)}</div>
         </div>
       </div>`;
     }).join('');
@@ -209,6 +216,57 @@ async function loadPanes() {
       showPlaceholder();
     }
   } catch(e) { console.warn('dev panes:', e); }
+}
+
+// ── Inline rename ────────────────────────────────────────────────────────────
+async function startRename(pencilEl) {
+  const row = pencilEl.closest('.term-pane-row');
+  const projectId = row.dataset.projectId;
+  if (!projectId) return;
+  const nameEl = row.querySelector('.term-pane-name');
+  const textEl = nameEl.querySelector('.term-pane-name-text');
+  const original = textEl.textContent;
+
+  const input = document.createElement('input');
+  input.className = 'term-pane-name-input';
+  input.value = original;
+  input.maxLength = 64;
+
+  nameEl.innerHTML = '';
+  nameEl.appendChild(input);
+  input.focus();
+  input.select();
+
+  let done = false;
+  async function commit() {
+    if (done) return; done = true;
+    const newName = input.value.trim();
+    if (!newName || newName === original) {
+      await loadPanes();
+      return;
+    }
+    try {
+      const res = await fetch(`/api/projects/${encodeURIComponent(projectId)}/name`, {
+        method: 'POST',
+        headers: _authHeaders({'Content-Type': 'application/json'}),
+        body: JSON.stringify({ name: newName }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    } catch(e) {
+      alert('重命名失败: ' + e.message);
+    }
+    await loadPanes();
+  }
+  function cancel() {
+    if (done) return; done = true;
+    loadPanes();
+  }
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); commit(); }
+    else if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+  });
+  input.addEventListener('blur', commit);
 }
 
 // ── Pane selection ────────────────────────────────────────────────────────────

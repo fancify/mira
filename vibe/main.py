@@ -961,21 +961,69 @@ def dev_panes_list(request: Request):
     from vibe.tmux_bridge import list_panes
     from vibe.terminal_monitor import get_panes
     monitored = {p["target"]: p for p in get_panes()}
+    # Build a lookup so we can return each project's display name (vibe.yaml `name`)
+    projects = get_all_projects()
+    proj_by_path = {pr["path"]: pr for pr in projects}
     all_panes = list_panes()
     result = []
     for p in all_panes:
         target = p["target"]
         mon = monitored.get(target, {})
         label = mon.get("label") or f"{p['command']}/{Path(p['cwd']).name}"
+        # Match cwd to a project by longest-path-prefix
+        match = None
+        cwd = p["cwd"]
+        for path, proj in proj_by_path.items():
+            if cwd == path or cwd.startswith(path + "/"):
+                if match is None or len(path) > len(match["path"]):
+                    match = proj
+        project_id = mon.get("project_id") or (Path(match["path"]).name if match else Path(cwd).name)
+        project_name = (match["name"] if match else None) or project_id
         result.append({
             "target": target,
             "label": label,
             "command": p["command"],
             "cwd": p["cwd"],
             "waiting": mon.get("waiting", False),
-            "project_id": mon.get("project_id") or Path(p["cwd"]).name,
+            "project_id": project_id,
+            "project_name": project_name,
         })
     return result
+
+
+@api.post("/api/projects/{project_id}/name")
+def update_project_name(project_id: str, request: Request, body: dict):
+    """Rename a project — writes `name:` into project's vibe.yaml.
+
+    Creates vibe.yaml if it doesn't exist. Invalidates project cache so
+    the new name is picked up on next /api/projects request.
+    """
+    if not _is_admin(request):
+        raise HTTPException(status_code=401, detail="需要管理员权限")
+    new_name = (body.get("name") or "").strip()
+    if not new_name:
+        raise HTTPException(status_code=400, detail="name required")
+    projects = get_all_projects()
+    proj = next((p for p in projects if p.get("id") == project_id), None)
+    if not proj:
+        raise HTTPException(status_code=404, detail="project not found")
+    import yaml
+    yaml_path = Path(proj["path"]) / "vibe.yaml"
+    cfg = {}
+    if yaml_path.exists():
+        try:
+            with open(yaml_path) as f:
+                cfg = yaml.safe_load(f) or {}
+        except Exception:
+            cfg = {}
+    cfg["name"] = new_name
+    with open(yaml_path, "w") as f:
+        yaml.safe_dump(cfg, f, allow_unicode=True, sort_keys=False)
+    # Invalidate cache so name shows up immediately
+    global _cache, _cache_ts
+    with _cache_lock:
+        _cache_ts = 0
+    return {"ok": True, "name": new_name}
 
 
 @api.get("/api/terminals/alerts")
