@@ -44,6 +44,20 @@ def render_dev_page() -> str:
   }
   .term-pane-row:hover { background: rgba(255,255,255,.03); }
   .term-pane-row.active { background: rgba(var(--accent-rgb),.1); border-left-color: var(--accent); }
+  .term-pane-kill {
+    opacity: 0; flex-shrink: 0; cursor: pointer;
+    width: 18px; height: 18px; border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--muted); font-size: 12px; line-height: 1;
+    transition: opacity .12s, color .12s, background .12s;
+    margin-left: 4px;
+  }
+  .term-pane-row:hover .term-pane-kill { opacity: 0.7; }
+  .term-pane-kill:hover {
+    opacity: 1 !important;
+    color: var(--red, #ef4444);
+    background: rgba(239, 68, 68, 0.12);
+  }
   .term-pane-dot {
     width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 3px;
     transition: background .25s, box-shadow .25s;
@@ -234,6 +248,7 @@ async function loadPanes() {
           <div class="term-pane-name">
             <span class="term-pane-name-text">${escHtml(p.project_name || p.project_id || p.target)}</span>
             <span class="term-pane-pencil" title="重命名" onclick="event.stopPropagation(); startRename(this);">✎</span>
+            <span class="term-pane-kill" title="关闭终端" onclick="event.stopPropagation(); killPane(this);">×</span>
           </div>
           <div class="term-pane-sub">${escHtml(p.label)}</div>
         </div>
@@ -249,6 +264,33 @@ async function loadPanes() {
       showPlaceholder();
     }
   } catch(e) { console.warn('dev panes:', e); }
+}
+
+// ── Kill pane ─────────────────────────────────────────────────────────────────
+async function killPane(killEl) {
+  const row = killEl.closest('.term-pane-row');
+  const target = row.dataset.target;
+  if (!target) return;
+  const name = row.querySelector('.term-pane-name-text')?.textContent || target;
+  if (!confirm(`确认关闭终端 "${name}" ?\n\n该 tmux pane 会被 kill，shell 进程退出，无法恢复。`)) return;
+  try {
+    const res = await fetch(`/api/dev/panes/${encodeURIComponent(target)}`, {
+      method: 'DELETE',
+      headers: _authHeaders(),
+    });
+    if (!res.ok) {
+      const detail = await res.text().catch(() => '');
+      throw new Error(`HTTP ${res.status} ${detail}`);
+    }
+    // If we were viewing this pane, hide the iframe placeholder
+    if (_currentTarget === target) {
+      _currentTarget = null;
+      showPlaceholder();
+    }
+    await loadPanes();
+  } catch(e) {
+    alert('关闭失败: ' + e.message);
+  }
 }
 
 // ── Inline rename ────────────────────────────────────────────────────────────

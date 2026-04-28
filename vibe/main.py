@@ -991,6 +991,25 @@ def dev_panes_list(request: Request):
     return result
 
 
+@api.delete("/api/dev/panes/{target:path}")
+def dev_kill_pane(request: Request, target: str):
+    """Kill a tmux pane (target = session:window.pane). Removes it from
+    the live tmux server, which propagates to /dev sidebar (auto-refresh)."""
+    if not _is_admin(request):
+        raise HTTPException(status_code=401, detail="需要管理员权限")
+    import subprocess
+    from vibe.tmux_bridge import _TMUX_BIN, _TMUX_ENV
+    from vibe.terminal_monitor import unregister_pane
+    proc = subprocess.run(
+        [_TMUX_BIN, "kill-pane", "-t", target],
+        capture_output=True, text=True, env=_TMUX_ENV,
+    )
+    if proc.returncode != 0:
+        raise HTTPException(status_code=500, detail=f"tmux kill-pane failed: {proc.stderr.strip()}")
+    unregister_pane(target)
+    return {"ok": True, "target": target}
+
+
 @api.post("/api/projects/{project_id}/name")
 def update_project_name(project_id: str, request: Request, body: dict):
     """Rename a project — writes `name:` into project's vibe.yaml.
