@@ -1684,6 +1684,9 @@ body {
   user-select: none; transition: transform .15s;
 }
 .balance-card:not(.collapsed) .balance-card-toggle { transform: rotate(180deg); }
+.balance-card:not(.collapsed) {
+  grid-column: 1 / -1;   /* expanded card fills the full row so all stats + spark fit */
+}
 .balance-card {
   display: flex; align-items: center; gap: 12px;
   background: var(--card); border: 1px solid var(--border);
