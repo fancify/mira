@@ -173,16 +173,16 @@ def render_detail_page(project_id: str, project_name: str, inline_data: str = "n
   }}
 
   /* ── ttyd iframe in terminal tab ── */
-  #ttyd-detail-frame {
+  #ttyd-detail-frame {{
     flex: 1; width: 100%; border: none; display: none;
     background: #0d1117;
-  }
-  #ttyd-detail-frame.visible { display: block; }
-  .term-empty-sidebar {
+  }}
+  #ttyd-detail-frame.visible {{ display: block; }}
+  .term-empty-sidebar {{
     padding: 24px 16px; text-align: center;
     color: var(--muted); font-size: 12px; line-height: 1.7;
-  }
-  .term-empty-sidebar code { color: var(--sub); font-size: 11px; }
+  }}
+  .term-empty-sidebar code {{ color: var(--sub); font-size: 11px; }}
 
   /* ── overview iframe ── */
   .overview-frame {{
