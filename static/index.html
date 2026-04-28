@@ -160,6 +160,8 @@
   box-shadow: 2px 2px 0 var(--border), inset 0 0 0 1px rgba(0,212,255,0.08);
 }
 
+html { overflow-x: hidden; }
+
 body {
   background: var(--bg);
   color: var(--text);
@@ -167,6 +169,10 @@ body {
   font-size: 14px;
   line-height: 1.5;
   min-height: 100vh;
+  overflow-x: hidden;        /* lock horizontal */
+  overscroll-behavior-x: none; /* kill rubber-band bounce on iOS */
+  touch-action: pan-y;        /* only allow vertical touch panning */
+  max-width: 100vw;
 }
 
 /* TOPBAR */
