@@ -1296,7 +1296,7 @@ function _loadTerminalsTab() {{
           <div>本项目暂无活跃终端</div>
           <button class="term-new-session-btn" onclick="newProjectSession()">＋ 新建会话</button>
           <div style="margin-top:14px;color:var(--muted);font-size:10px">
-            或终端跑 <code>mira term ${PROJECT_ID}</code>
+            或终端跑 <code>mira term ${{PROJECT_ID}}</code>
           </div>
         </div>`;
         placeholder.style.display = '';
