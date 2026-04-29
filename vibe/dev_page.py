@@ -185,6 +185,9 @@ def render_dev_page() -> str:
   /* ── Mobile detail header (replaces topbar when a pane is open) ── */
   .term-detail-header { display: none; }
 
+  /* ── Mobile input bar (hidden on desktop) ── */
+  .mobile-input-bar { display: none; }
+
   /* ── Mobile ── */
   @media (max-width: 900px) {
     .term-detail-header {
@@ -236,12 +239,59 @@ def render_dev_page() -> str:
       background: var(--bg);
       overscroll-behavior: none;
     }
+    /* On mobile, iframe is display-only; input goes through the input bar */
     #ttyd-frame.visible {
       display: block; flex: 1; width: 100%; min-height: 0;
       -webkit-overflow-scrolling: touch;
-      touch-action: manipulation;
       overscroll-behavior: contain;
+      pointer-events: none;
     }
+
+    /* ── Mobile input bar ── */
+    .mobile-input-bar {
+      display: flex; flex-direction: column; flex-shrink: 0;
+      background: var(--panel); border-top: 1px solid var(--border);
+      padding: 0; z-index: 210;
+    }
+    /* Special keys toolbar */
+    .mobile-keys-row {
+      display: flex; gap: 0; padding: 4px 8px;
+      overflow-x: auto; -webkit-overflow-scrolling: touch;
+      border-bottom: 1px solid rgba(255,255,255,.04);
+    }
+    .mobile-key-btn {
+      background: rgba(255,255,255,.06); border: 1px solid var(--border);
+      color: var(--sub); font-family: var(--mono); font-size: 11px;
+      padding: 4px 10px; border-radius: 4px; cursor: pointer;
+      white-space: nowrap; flex-shrink: 0; margin-right: 4px;
+      line-height: 1.2; transition: color .12s, border-color .12s, background .12s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .mobile-key-btn:active { background: rgba(var(--accent-rgb),.2); border-color: var(--accent); color: var(--accent); }
+    /* Input row */
+    .mobile-input-row {
+      display: flex; align-items: flex-end; gap: 8px;
+      padding: 8px 10px; padding-bottom: max(8px, env(safe-area-inset-bottom));
+    }
+    .mobile-cmd-input {
+      flex: 1; min-height: 36px; max-height: 120px;
+      background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+      color: var(--text); font-family: var(--mono); font-size: 14px;
+      padding: 8px 12px; outline: none; resize: none;
+      line-height: 1.4; overflow-y: auto;
+    }
+    .mobile-cmd-input:focus { border-color: var(--accent); }
+    .mobile-cmd-input::placeholder { color: var(--muted); }
+    .mobile-send-btn {
+      width: 36px; height: 36px; flex-shrink: 0;
+      background: var(--accent); border: none; border-radius: 8px;
+      color: #fff; font-size: 18px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: opacity .12s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .mobile-send-btn:active { opacity: .7; }
+    .mobile-send-btn:disabled { opacity: .3; }
   }
 """
 
@@ -714,6 +764,111 @@ function pickNewTerm(cwd) {
   newWindow(cwd);
 }
 
+// ── Mobile input bar ─────────────────────────────────────────────────────────
+var _cmdHistory = JSON.parse(localStorage.getItem('mira-cmd-history') || '[]');
+var _historyIdx = -1;
+
+var _SPECIAL_KEYS = {
+  'Tab':    '\t',
+  'Ctrl+C': '\x03',
+  'Ctrl+D': '\x04',
+  'Ctrl+Z': '\x1a',
+  'Ctrl+L': '\x0c',
+  'Ctrl+A': '\x01',
+  'Ctrl+E': '\x05',
+  'Ctrl+U': '\x15',
+  'Esc':    '\x1b',
+  'Up':     '\x1b[A',
+  'Down':   '\x1b[B',
+};
+
+async function _sendToTerminal(keys) {
+  if (!_currentTarget) return;
+  try {
+    await fetch('/api/terminals/' + encodeURIComponent(_currentTarget) + '/send', {
+      method: 'POST',
+      headers: _authHeaders({'Content-Type': 'application/json'}),
+      body: JSON.stringify({ keys: keys })
+    });
+  } catch(e) { console.warn('send error:', e); }
+}
+
+function _initMobileInput() {
+  if (!_isMobile) return;
+  var input = document.getElementById('mobile-cmd-input');
+  var sendBtn = document.getElementById('mobile-send-btn');
+  if (!input || !sendBtn) return;
+
+  // Auto-resize textarea height
+  function autoResize() {
+    input.style.height = 'auto';
+    input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+  }
+  input.addEventListener('input', autoResize);
+
+  // Send on Enter (without Shift); Shift+Enter = newline
+  input.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      _sendMobileCmd();
+    }
+    // Up/Down arrow for history when input is empty
+    if (e.key === 'ArrowUp' && !input.value.trim()) {
+      e.preventDefault();
+      _navigateHistory(-1);
+    }
+    if (e.key === 'ArrowDown' && !input.value.trim()) {
+      e.preventDefault();
+      _navigateHistory(1);
+    }
+  });
+
+  // Send button
+  sendBtn.addEventListener('click', function() {
+    _sendMobileCmd();
+  });
+
+  // Special key buttons
+  document.getElementById('mobile-keys-row').addEventListener('click', function(e) {
+    var btn = e.target.closest('.mobile-key-btn');
+    if (!btn) return;
+    var keyName = btn.dataset.key;
+    var seq = _SPECIAL_KEYS[keyName];
+    if (seq) _sendToTerminal(seq);
+  });
+}
+
+async function _sendMobileCmd() {
+  var input = document.getElementById('mobile-cmd-input');
+  var text = input.value;
+  if (!text) return;
+  // Add to history (dedup, max 100)
+  _cmdHistory = _cmdHistory.filter(function(c) { return c !== text; });
+  _cmdHistory.push(text);
+  if (_cmdHistory.length > 100) _cmdHistory = _cmdHistory.slice(-100);
+  localStorage.setItem('mira-cmd-history', JSON.stringify(_cmdHistory));
+  _historyIdx = -1;
+  // Send: each line as separate command
+  await _sendToTerminal(text + '\n');
+  input.value = '';
+  input.style.height = 'auto';
+  input.focus();
+}
+
+function _navigateHistory(dir) {
+  var input = document.getElementById('mobile-cmd-input');
+  if (!_cmdHistory.length) return;
+  if (_historyIdx === -1) {
+    if (dir === -1) _historyIdx = _cmdHistory.length - 1;
+    else return;
+  } else {
+    _historyIdx += dir;
+    if (_historyIdx < 0) _historyIdx = 0;
+    if (_historyIdx >= _cmdHistory.length) { _historyIdx = -1; input.value = ''; return; }
+  }
+  input.value = _cmdHistory[_historyIdx];
+}
+
 // ── Init ──────────────────────────────────────────────────────────────────────
 async function init() {
   await _initAuth();
@@ -726,6 +881,8 @@ async function init() {
     if (e.target.closest('.term-pane-pencil, .term-pane-kill, .term-pane-name-input')) return;
     selectPane(row.dataset.target, row.dataset.cmd);
   });
+  // Init mobile input bar
+  _initMobileInput();
   // ttyd iframe is loaded lazily on first pane click (avoids basic-auth dialog on page load)
   await loadPanes();
   setInterval(loadPanes, 5000);
@@ -774,6 +931,28 @@ init();
       <button class="term-placeholder-btn" onclick="openNewTermDialog()">+ 新建终端窗口</button>
     </div>
     <iframe id="ttyd-frame" allow="clipboard-read; clipboard-write"></iframe>
+    <!-- Mobile input bar: bypasses iframe input issues via tmux send-keys -->
+    <div class="mobile-input-bar" id="mobile-input-bar">
+      <div class="mobile-keys-row" id="mobile-keys-row">
+        <button class="mobile-key-btn" data-key="Tab">Tab</button>
+        <button class="mobile-key-btn" data-key="Ctrl+C">⌃C</button>
+        <button class="mobile-key-btn" data-key="Ctrl+D">⌃D</button>
+        <button class="mobile-key-btn" data-key="Ctrl+Z">⌃Z</button>
+        <button class="mobile-key-btn" data-key="Esc">Esc</button>
+        <button class="mobile-key-btn" data-key="Up">↑</button>
+        <button class="mobile-key-btn" data-key="Down">↓</button>
+        <button class="mobile-key-btn" data-key="Ctrl+L">清屏</button>
+        <button class="mobile-key-btn" data-key="Ctrl+A">行首</button>
+        <button class="mobile-key-btn" data-key="Ctrl+E">行尾</button>
+        <button class="mobile-key-btn" data-key="Ctrl+U">删行</button>
+      </div>
+      <div class="mobile-input-row">
+        <textarea class="mobile-cmd-input" id="mobile-cmd-input" rows="1"
+          placeholder="输入命令…" autocomplete="off" autocorrect="off"
+          autocapitalize="off" spellcheck="false" enterkeyhint="send"></textarea>
+        <button class="mobile-send-btn" id="mobile-send-btn" title="发送">↵</button>
+      </div>
+    </div>
   </div>
 </div>
 
