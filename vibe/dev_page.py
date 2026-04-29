@@ -84,6 +84,31 @@ def render_dev_page() -> str:
   .term-empty-sidebar { padding: 32px 16px; font-size: 12px; color: var(--muted); line-height: 1.8; }
   .term-empty-sidebar code { color: var(--sub); }
 
+  /* ── Group headers ── */
+  .term-group-header {
+    padding: 8px 14px; display: flex; align-items: center; gap: 6px;
+    cursor: pointer; user-select: none;
+    border-bottom: 1px solid rgba(255,255,255,.04);
+    transition: background .12s;
+  }
+  .term-group-header:hover { background: rgba(255,255,255,.03); }
+  .term-group-arrow {
+    font-size: 10px; color: var(--muted); width: 12px; text-align: center;
+    transition: transform .15s;
+  }
+  .term-group-arrow.collapsed { transform: rotate(-90deg); }
+  .term-group-name {
+    font-size: 11px; font-weight: 600; color: var(--sub);
+    flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .term-group-count {
+    font-size: 10px; color: var(--muted); background: rgba(255,255,255,.06);
+    padding: 0 5px; border-radius: 8px; line-height: 16px;
+  }
+  .term-group-body { overflow: hidden; }
+  .term-group-body.collapsed { display: none; }
+  .term-group-body .term-pane-row { padding-left: 26px; }
+
   /* ── ttyd iframe ── */
   .term-main {
     flex: 1; display: flex; flex-direction: column; min-width: 0; overflow: hidden;
@@ -145,6 +170,8 @@ def render_dev_page() -> str:
     .term-pane-dot { margin-top: 6px; }
     .term-pane-name { font-size: 14px; }
     .term-pane-proj { font-size: 12px; margin-top: 3px; }
+    .term-group-header { padding: 12px 16px; }
+    .term-group-body .term-pane-row { padding-left: 28px; }
     .term-main { display: none; flex: 1; }
     .dev-page.detail-open .term-sidebar { display: none; }
     .dev-page.detail-open .term-main { display: flex; }
@@ -160,6 +187,8 @@ function escHtml(s) {
 // ── State ──────────────────────────────────────────────────────────────────────
 let _currentTarget = null;
 const _paneState = {};
+const _groupCollapsed = {};  // project_id -> bool
+const _filterProject = new URLSearchParams(location.search).get('project') || null;
 
 // ── State detection (for sidebar dots) ────────────────────────────────────────
 function _detectState(text) {
@@ -224,7 +253,8 @@ async function _bgPoll() {
   _bgPollTimer = setTimeout(_bgPoll, 5000);
 }
 
-// ── Pane list ─────────────────────────────────────────────────────────────────
+// ── Pane list (grouped by project) ────────────────────────────────────────────
+let _firstLoad = true;
 async function loadPanes() {
   if (!_isAdmin) { openLoginModal(init); return; }
   try {
@@ -237,33 +267,80 @@ async function loadPanes() {
       list.innerHTML = `<div class="term-empty-sidebar">暂无活跃终端<br><br><code>mira term &lt;project&gt;</code><br>启动新会话</div>`;
       return;
     }
-    list.innerHTML = panes.map(function(p) {
-      const st = _paneState[p.target] || 'inactive';
-      return `<div class="term-pane-row${_currentTarget === p.target ? ' active' : ''}"
-           data-target="${escHtml(p.target)}"
-           data-cmd="${escHtml(p.command || '')}"
-           data-project-id="${escHtml(p.project_id || '')}">
-        <div class="term-pane-dot ${st}"></div>
-        <div class="term-pane-info">
-          <div class="term-pane-name">
-            <span class="term-pane-name-text">${escHtml(p.project_name || p.project_id || p.target)}</span>
-            <span class="term-pane-pencil" title="重命名" onclick="event.stopPropagation(); startRename(this);">✎</span>
-            <span class="term-pane-kill" title="关闭终端" onclick="event.stopPropagation(); killPane(this);">×</span>
+
+    // Group panes by project_id
+    const groups = new Map();
+    for (const p of panes) {
+      const pid = p.project_id || '_ungrouped';
+      if (!groups.has(pid)) groups.set(pid, { name: p.project_name || p.project_id || '未分组', panes: [] });
+      groups.get(pid).panes.push(p);
+    }
+
+    // On first load with ?project=xxx, collapse all other groups
+    if (_firstLoad && _filterProject) {
+      for (const [pid] of groups) {
+        _groupCollapsed[pid] = (pid !== _filterProject);
+      }
+    }
+    _firstLoad = false;
+
+    let html = '';
+    for (const [pid, grp] of groups) {
+      const collapsed = !!_groupCollapsed[pid];
+      html += `<div class="term-group-header" data-group="${escHtml(pid)}" onclick="toggleGroup('${escHtml(pid)}')">
+        <span class="term-group-arrow${collapsed ? ' collapsed' : ''}">▾</span>
+        <span class="term-group-name">${escHtml(grp.name)}</span>
+        <span class="term-group-count">${grp.panes.length}</span>
+      </div>
+      <div class="term-group-body${collapsed ? ' collapsed' : ''}" data-group-body="${escHtml(pid)}">`;
+      for (const p of grp.panes) {
+        const st = _paneState[p.target] || 'inactive';
+        html += `<div class="term-pane-row${_currentTarget === p.target ? ' active' : ''}"
+             data-target="${escHtml(p.target)}"
+             data-cmd="${escHtml(p.command || '')}"
+             data-project-id="${escHtml(p.project_id || '')}">
+          <div class="term-pane-dot ${st}"></div>
+          <div class="term-pane-info">
+            <div class="term-pane-name">
+              <span class="term-pane-name-text">${escHtml(p.label || p.target)}</span>
+              <span class="term-pane-pencil" title="重命名" onclick="event.stopPropagation(); startRename(this);">✎</span>
+              <span class="term-pane-kill" title="关闭终端" onclick="event.stopPropagation(); killPane(this);">×</span>
+            </div>
+            <div class="term-pane-sub">${escHtml(p.command || '')}</div>
           </div>
-          <div class="term-pane-sub">${escHtml(p.label)}</div>
-        </div>
-      </div>`;
-    }).join('');
+        </div>`;
+      }
+      html += '</div>';
+    }
+    list.innerHTML = html;
     list.querySelectorAll('.term-pane-row').forEach(row => {
       row.addEventListener('click', () => selectPane(row.dataset.target, row.dataset.cmd));
     });
+
     // If current pane disappeared, clear
     const targets = new Set(panes.map(p => p.target));
     if (_currentTarget && !targets.has(_currentTarget)) {
       _currentTarget = null;
       showPlaceholder();
     }
+
+    // Auto-select first pane of filtered project on first load
+    if (_filterProject && !_currentTarget) {
+      const grp = groups.get(_filterProject);
+      if (grp && grp.panes.length) {
+        selectPane(grp.panes[0].target, grp.panes[0].command || '');
+      }
+    }
   } catch(e) { console.warn('dev panes:', e); }
+}
+
+function toggleGroup(pid) {
+  _groupCollapsed[pid] = !_groupCollapsed[pid];
+  const collapsed = _groupCollapsed[pid];
+  const header = document.querySelector(`.term-group-header[data-group="${CSS.escape(pid)}"]`);
+  const body = document.querySelector(`.term-group-body[data-group-body="${CSS.escape(pid)}"]`);
+  if (header) header.querySelector('.term-group-arrow').classList.toggle('collapsed', collapsed);
+  if (body) body.classList.toggle('collapsed', collapsed);
 }
 
 // ── Kill pane ─────────────────────────────────────────────────────────────────

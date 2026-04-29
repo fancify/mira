@@ -62,141 +62,14 @@ def render_detail_page(project_id: str, project_name: str, inline_data: str = "n
   .tab-panel {{ display: none; }}
   .tab-panel.active {{ display: block; }}
 
-  /* ── Terminal Tab ────────────────────────────────────────────────────────── */
-  .term-layout {{
-    display: flex; height: calc(100vh - 100px); min-height: 400px;
-  }}
-  .term-sidebar {{
-    width: 160px; border-right: 1px solid var(--border);
-    display: flex; flex-direction: column; flex-shrink: 0;
-  }}
-  .term-sidebar-header {{
-    padding: 10px 12px; font-size: 11px; color: var(--text-muted);
-    font-weight: 600; letter-spacing: .5px;
-    border-bottom: 1px solid var(--border);
-  }}
-  .term-sidebar-footer {{
-    padding: 8px 12px; font-size: 10px; color: var(--muted);
-    border-top: 1px solid var(--border); margin-top: auto;
-  }}
-  .term-pane-row {{
-    padding: 8px 12px; display: flex; align-items: center; gap: 7px;
-    cursor: pointer; border-left: 2px solid transparent;
-  }}
-  .term-pane-row:hover {{ background: rgba(255,255,255,.03); }}
-  .term-pane-row.active {{
-    background: rgba(79,70,229,.12); border-left-color: var(--accent);
-  }}
-  .term-pane-dot {{
-    width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
-  }}
-  .term-pane-dot.running {{ background: #3fb950; }}
-  .term-pane-dot.waiting {{ background: #d29922; }}
-  .term-pane-name {{ font-size: 11px; color: var(--text); }}
-  .term-pane-cmd  {{ font-size: 9px; color: var(--text-muted); margin-top: 1px; }}
-  .term-main {{
-    flex: 1; display: flex; flex-direction: column; min-width: 0;
-  }}
-  .term-titlebar {{
-    padding: 6px 12px; display: flex; align-items: center;
-    justify-content: space-between; border-bottom: 1px solid var(--border);
-    font-size: 11px; font-family: var(--mono); color: var(--text);
-    flex-shrink: 0;
-  }}
-  .term-quickbtns {{ display: flex; gap: 6px; }}
+  /* ── Terminal quick button (summary panel) ── */
   .term-qbtn {{
     background: var(--panel); border: 1px solid var(--border);
     color: var(--text-muted); font-size: 10px; padding: 2px 8px;
     border-radius: 3px; cursor: pointer; font-family: var(--mono);
+    text-decoration: none;
   }}
   .term-qbtn:hover {{ border-color: var(--accent); color: var(--accent); }}
-  /* ── ANSI 16-color palette ── */
-  :root {{
-    --ansi-k: #3a3f4b;
-    --ansi-r: var(--red);       --ansi-g: var(--green);
-    --ansi-y: var(--yellow);    --ansi-b: #4e9eff;
-    --ansi-m: #c792ea;          --ansi-c: #56b6c2;
-    --ansi-w: var(--text);      --ansi-K: var(--muted);
-    --ansi-R: var(--red);       --ansi-G: var(--green);
-    --ansi-Y: var(--orange);    --ansi-B: #82aaff;
-    --ansi-M: #d9a0f5;          --ansi-C: #89ddff;
-    --ansi-W: #ffffff;
-  }}
-  .term-output {{
-    flex: 1; overflow-y: auto; font-family: var(--mono);
-    font-size: 12px; background: var(--bg); color: var(--text); padding: 12px 0;
-  }}
-  .out-block {{
-    margin: 0 14px 10px; background: var(--panel);
-    border: 1px solid rgba(255,255,255,.04); border-radius: var(--radius); overflow: hidden;
-  }}
-  .out-line {{
-    display: flex; align-items: baseline;
-    min-height: 1.65em; line-height: 1.65; transition: background .08s;
-  }}
-  .out-line:hover {{ background: rgba(255,255,255,.04); }}
-  .out-ln {{
-    flex-shrink: 0; width: 3.4em; padding: 0 .7em 0 .6em;
-    text-align: right; color: var(--muted); font-size: .78em;
-    user-select: none; border-right: 1px solid rgba(255,255,255,.06);
-    line-height: 1.65; white-space: pre; background: rgba(0,0,0,.08);
-  }}
-  .out-code {{
-    flex: 1; min-width: 0; padding: 0 16px;
-    white-space: pre-wrap; word-break: break-all; line-height: 1.65;
-  }}
-  @media (max-width: 600px) {{
-    .term-output {{ font-size: 11px; padding: 8px 0; }}
-    .out-block {{ margin: 0 8px 8px; border-radius: var(--radius-sm); }}
-    .out-ln {{ width: 2.4em; font-size: .75em; padding: 0 .4em 0 .3em; }}
-    .out-code {{ padding: 0 10px; }}
-  }}
-  .term-inputbar {{
-    padding: 8px 12px; border-top: 1px solid var(--border);
-    display: flex; gap: 8px; flex-shrink: 0;
-  }}
-  .term-input {{
-    flex: 1; background: var(--panel); border: 1px solid var(--border);
-    border-radius: 6px; padding: 6px 10px; color: var(--text);
-    font-family: var(--mono); font-size: 12px; outline: none;
-  }}
-  .term-input:focus {{ border-color: var(--accent); }}
-  .term-send-btn {{
-    background: #238636; border: none; color: #fff;
-    padding: 6px 14px; border-radius: 6px; font-size: 12px; cursor: pointer;
-  }}
-  .term-send-btn:hover {{ background: #2ea043; }}
-  .term-empty {{
-    flex: 1; display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    color: var(--text-muted); font-size: 13px; text-align: center; gap: 8px;
-  }}
-
-  /* ── New session button (terminal tab empty state) ── */
-  .term-new-session-btn {{
-    margin-top: 14px;
-    background: var(--accent); color: #fff; border: none;
-    padding: 8px 18px; border-radius: 6px; cursor: pointer;
-    font-size: 12px; font-weight: 600; font-family: var(--mono);
-    transition: opacity .15s;
-  }}
-  .term-new-session-btn:hover {{ opacity: 0.85; }}
-  .term-empty-sidebar code {{
-    background: var(--bg); padding: 2px 6px; border-radius: 3px;
-    color: var(--text); font-family: var(--mono);
-  }}
-
-  /* ── ttyd iframe in terminal tab ── */
-  #ttyd-detail-frame {{
-    flex: 1; width: 100%; border: none; display: none;
-    background: #0d1117;
-  }}
-  #ttyd-detail-frame.visible {{ display: block; }}
-  .term-empty-sidebar {{
-    padding: 24px 16px; text-align: center;
-    color: var(--muted); font-size: 12px; line-height: 1.7;
-  }}
-  .term-empty-sidebar code {{ color: var(--sub); font-size: 11px; }}
 
   /* ── overview iframe ── */
   .overview-frame {{
@@ -477,27 +350,7 @@ def render_detail_page(project_id: str, project_name: str, inline_data: str = "n
     /* show mobile docs components */
     .docs-mobile-list {{ display: flex; }}
 
-    /* terminal tab — stack vertically on mobile */
-    .term-layout {{ flex-direction: column; height: calc(100vh - 90px); }}
-    .term-sidebar {{
-      width: 100%; border-right: none; border-bottom: 1px solid var(--border);
-      flex-direction: row; flex-shrink: 0; overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-    }}
-    .term-sidebar-header {{ display: none; }}
-    .term-sidebar-footer {{ display: none; }}
-    #term-pane-list {{ display: flex; flex-direction: row; flex: 1; }}
-    .term-pane-row {{
-      flex-direction: column; align-items: flex-start; gap: 2px;
-      padding: 8px 14px; white-space: nowrap; flex-shrink: 0;
-      border-left: none; border-bottom: 2px solid transparent;
-    }}
-    .term-pane-row.active {{ border-bottom-color: var(--accent); border-left-color: transparent; }}
-    .term-output {{ font-size: 11px; }}
     .term-qbtn {{ padding: 4px 10px; font-size: 11px; }}
-    .term-send-btn {{ padding: 8px 18px; font-size: 13px; }}
-    .term-input {{ font-size: 13px; padding: 8px 10px; }}
-    .term-inputbar {{ padding: 10px 12px; }}
   }}
 
 </style>
@@ -515,7 +368,7 @@ def render_detail_page(project_id: str, project_name: str, inline_data: str = "n
     <button class="tab-btn active" id="tab-overview" onclick="showTab('overview')">系统架构</button>
     <button class="tab-btn" id="tab-design" onclick="showTab('design')">设计文档</button>
     <button class="tab-btn" id="tab-prompts" onclick="showTab('prompts')">Prompts</button>
-    <button class="tab-btn" id="tab-terminals" onclick="showTab('terminals')">⬛ 终端</button>
+    <a class="tab-btn" href="/dev?project={project_id}" style="text-decoration:none">⬛ 终端</a>
   </div>
   <button class="refresh-btn" onclick="reload()" title="刷新">↻</button>
 </div>
@@ -531,62 +384,36 @@ def render_detail_page(project_id: str, project_name: str, inline_data: str = "n
     <div class="loading"><div class="spinner"></div>加载中...</div>
   </div>
   <div class="tab-panel" id="panel-prompts"></div>
-  <div class="tab-panel" id="panel-terminals">
-    <div class="term-layout">
-      <div class="term-sidebar">
-        <div class="term-sidebar-header">活跃会话</div>
-        <div id="term-pane-list"></div>
-        <div class="term-sidebar-footer">每 3 秒刷新</div>
-      </div>
-      <div class="term-main">
-        <div id="term-placeholder" class="term-empty">
-          <div style="font-size:24px;opacity:.3">⬛</div>
-          <div>从左侧选择一个终端</div>
-          <div style="font-size:11px;color:var(--muted);margin-top:6px">
-            <code>mira term &lt;project&gt;</code> 启动新会话
-          </div>
-        </div>
-        <iframe id="ttyd-detail-frame" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" allow="clipboard-read; clipboard-write"></iframe>
-      </div>
-    </div>
-  </div>
 </div>
 
 <script>
 const PROJECT_ID = {repr(project_id)};
 window._INLINE_PROJECT = {inline_data};
 let projectData = null;
-let activeTab = (location.hash === '#terminals' ? 'terminals' : 'overview');
+// Redirect #terminals to /dev?project=xxx
+if (location.hash === '#terminals') {{
+  location.replace('/dev?project=' + encodeURIComponent({repr(project_id)}));
+}}
+let activeTab = 'overview';
 let summaryLoaded = false;
 let overviewLoaded = false;
 let designLoaded = false;
 let promptsLoaded = false;
 
-let _termPollTimer = null;
-let _termCurrentTarget = null;
-
 function showTab(name) {{
   activeTab = name;
-  if (name !== 'terminals') {{
-    clearInterval(_termPollTimer);
-    _termPollTimer = null;
-  }}
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-  document.getElementById('tab-' + name).classList.add('active');
-  document.getElementById('panel-' + name).classList.add('active');
+  const tabEl = document.getElementById('tab-' + name);
+  if (tabEl) tabEl.classList.add('active');
+  const panelEl = document.getElementById('panel-' + name);
+  if (panelEl) panelEl.classList.add('active');
   if (name === 'summary'  && !summaryLoaded)  renderSummary();
   if (name === 'overview' && !overviewLoaded) loadOverview();
   if (name === 'design'   && !designLoaded)   renderDesign();
   if (name === 'prompts'  && !promptsLoaded) {{
     if (!_isAdmin) {{ openLoginModal(() => {{ promptsLoaded = false; renderPrompts(); }}); return; }}
     renderPrompts();
-  }}
-  if (name === 'terminals') {{
-    clearInterval(_termPollTimer);
-    _loadTerminalsTab();
-    // ttyd iframe handles its own state — only refresh pane list periodically
-    _termPollTimer = setInterval(_loadTerminalsTab, 5000);
   }}
 }}
 
@@ -790,7 +617,7 @@ async function loadOverview() {{
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
         ${{caLastStr ? `<div class="claude-last">Claude ${{caLastStr}}</div>` : ''}}
-        ${{p.path ? `<button class="term-qbtn" onclick="openTerminal(this)" data-path="${{escHtml(p.path)}}" title="在 Dev 页面打开该项目的终端">⬛ 打开终端</button>` : ''}}
+        ${{p.path ? `<a class="term-qbtn" href="/dev?project=${{encodeURIComponent(PROJECT_ID)}}" title="在 Dev 页面打开该项目的终端">⬛ 打开终端</a>` : ''}}
       </div>
     </div>`;
 
@@ -1279,98 +1106,6 @@ async function renderPrompts() {{
 function promptGoPage(p) {{ window._promptGoPage && window._promptGoPage(p); }}
 function updatePrompts() {{ window._updatePrompts && window._updatePrompts(); }}
 
-// ─── Terminal Tab (ttyd iframe, filtered to this project) ─────────────────────
-function _loadTerminalsTab() {{
-  if (!_isAdmin) return;
-  fetch('/api/dev/panes', {{headers: _authHeaders()}})
-    .then(r => r.ok ? r.json() : [])
-    .then(panes => {{
-      const mine = panes.filter(p => p.project_id === PROJECT_ID);
-      const list = document.getElementById('term-pane-list');
-      const placeholder = document.getElementById('term-placeholder');
-      const frame = document.getElementById('ttyd-detail-frame');
-
-      if (!mine.length) {{
-        list.innerHTML = `
-        <div class="term-empty-sidebar">
-          <div>本项目暂无活跃终端</div>
-          <button class="term-new-session-btn" onclick="newProjectSession()">＋ 新建会话</button>
-          <div style="margin-top:14px;color:var(--muted);font-size:10px">
-            或终端跑 <code>mira term ${{PROJECT_ID}}</code>
-          </div>
-        </div>`;
-        placeholder.style.display = '';
-        frame.classList.remove('visible');
-        _termCurrentTarget = null;
-        return;
-      }}
-
-      list.innerHTML = mine.map(p => `
-        <div class="term-pane-row${{p.target === _termCurrentTarget ? ' active' : ''}}"
-             data-target="${{escHtml(p.target)}}"
-             data-cmd="${{escHtml(p.command || '')}}">
-          <div class="term-pane-dot ${{p.waiting ? 'waiting' : 'running'}}"></div>
-          <div style="min-width:0;flex:1">
-            <div class="term-pane-name">${{escHtml(p.label || p.target)}}</div>
-            <div class="term-pane-cmd">${{escHtml(p.command || '')}}</div>
-          </div>
-        </div>`).join('');
-      list.querySelectorAll('.term-pane-row').forEach(row => {{
-        row.addEventListener('click', () =>
-          _selectTermPane(row.dataset.target, row.dataset.cmd));
-      }});
-      const targets = new Set(mine.map(p => p.target));
-      if (_termCurrentTarget && !targets.has(_termCurrentTarget)) {{
-        _termCurrentTarget = null;
-        placeholder.style.display = '';
-        frame.classList.remove('visible');
-      }}
-      if (!_termCurrentTarget && mine.length) {{
-        _selectTermPane(mine[0].target, mine[0].command || '');
-      }}
-    }})
-    .catch(() => {{}});
-}}
-
-async function newProjectSession() {{
-  const cwd = (projectData && projectData.path) || null;
-  if (!cwd) {{ alert('找不到项目路径'); return; }}
-  try {{
-    const res = await fetch('/api/terminal/new-window', {{
-      method: 'POST',
-      headers: _authHeaders({{'Content-Type': 'application/json'}}),
-      body: JSON.stringify({{ cwd }}),
-    }});
-    if (!res.ok) {{
-      const detail = await res.text().catch(() => '');
-      throw new Error(`HTTP ${{res.status}} ${{detail}}`);
-    }}
-    // Give tmux a moment to register the new window, then refresh
-    setTimeout(_loadTerminalsTab, 600);
-  }} catch(e) {{
-    alert('新建失败: ' + e.message);
-  }}
-}}
-
-async function _selectTermPane(target, cmd) {{
-  _termCurrentTarget = target;
-  document.querySelectorAll('.term-pane-row').forEach(r =>
-    r.classList.toggle('active', r.dataset.target === target));
-
-  // Tell tmux to switch the active pane in the shared session
-  try {{
-    await fetch('/api/terminal/focus', {{
-      method: 'POST',
-      headers: _authHeaders({{'Content-Type': 'application/json'}}),
-      body: JSON.stringify({{ target }}),
-    }});
-  }} catch(_) {{}}
-
-  const frame = document.getElementById('ttyd-detail-frame');
-  if (!frame.src) frame.src = '/terminal/';
-  document.getElementById('term-placeholder').style.display = 'none';
-  frame.classList.add('visible');
-}}
 
 async function reload() {{
   summaryLoaded = false; overviewLoaded = false; designLoaded = false; promptsLoaded = false;
@@ -1382,19 +1117,6 @@ async function reload() {{
 }}
 
 {_tb_js}
-
-// ─── 打开终端 ──────────────────────────────────────────────────────────────────
-async function openTerminal(btn) {{
-  const path = btn.dataset.path;
-  try {{
-    await fetch('/api/terminal/new-window', {{
-      method: 'POST',
-      headers: _authHeaders({{'Content-Type': 'application/json'}}),
-      body: JSON.stringify({{ cwd: path }})
-    }});
-  }} catch(e) {{}}
-  window.location.href = '/dev';
-}}
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 async function init() {{
@@ -1409,7 +1131,6 @@ async function init() {{
   }} catch(e) {{ /* non-fatal */ }}
 
   renderSummary();
-  // Switch to whichever tab activeTab points to (default 'overview', or 'terminals' if URL has #terminals)
   showTab(activeTab);
 }}
 
