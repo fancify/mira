@@ -506,7 +506,17 @@ async function selectPane(target, cmd) {
 
 function showTerminal() {
   const frame = document.getElementById('ttyd-frame');
-  if (!frame.src) frame.src = '/terminal/';   // lazy-load on first show
+  if (!frame.src) {
+    frame.src = '/terminal/';   // lazy-load on first show
+    // Suppress beforeunload dialog from ttyd iframe
+    frame.addEventListener('load', () => {
+      try {
+        frame.contentWindow.addEventListener('beforeunload', e => {
+          e.stopImmediatePropagation();
+        }, true);
+      } catch(e) {}  // same-origin so this should work
+    });
+  }
   document.getElementById('term-placeholder').style.display = 'none';
   frame.classList.add('visible');
 }
@@ -622,7 +632,7 @@ init();
       <div><code>mira term &lt;project&gt;</code> 启动新会话</div>
       <button class="term-placeholder-btn" onclick="openNewTermDialog()">+ 新建终端窗口</button>
     </div>
-    <iframe id="ttyd-frame" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" allow="clipboard-read; clipboard-write"></iframe>
+    <iframe id="ttyd-frame" allow="clipboard-read; clipboard-write"></iframe>
   </div>
 </div>
 
