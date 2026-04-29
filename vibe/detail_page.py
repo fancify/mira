@@ -46,6 +46,7 @@ def render_detail_page(project_id: str, project_name: str, inline_data: str = "n
     height: 40px; padding: 0 14px; background: none; border: none;
     font-family: var(--mono); font-size: 12px; color: var(--sub); cursor: pointer;
     border-bottom: 2px solid transparent; transition: all .15s; white-space: nowrap;
+    display: inline-flex; align-items: center; text-decoration: none;
   }}
   .tab-btn:hover {{ color: var(--text); }}
   .tab-btn.active {{ color: var(--accent); border-bottom-color: var(--accent); }}
@@ -368,7 +369,7 @@ def render_detail_page(project_id: str, project_name: str, inline_data: str = "n
     <button class="tab-btn active" id="tab-overview" onclick="showTab('overview')">系统架构</button>
     <button class="tab-btn" id="tab-design" onclick="showTab('design')">设计文档</button>
     <button class="tab-btn" id="tab-prompts" onclick="showTab('prompts')">Prompts</button>
-    <a class="tab-btn" href="/dev?project={project_id}" style="text-decoration:none">⬛ 终端</a>
+    <a class="tab-btn" href="/dev?project={project_id}">Dev ↗</a>
   </div>
   <button class="refresh-btn" onclick="reload()" title="刷新">↻</button>
 </div>

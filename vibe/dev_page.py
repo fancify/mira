@@ -124,6 +124,58 @@ def render_dev_page() -> str:
   }
   #ttyd-frame.visible { display: block; }
 
+  /* ── Empty-state new terminal button ── */
+  .term-placeholder-btn {
+    margin-top: 12px; padding: 10px 28px;
+    background: none; border: 1px solid var(--border);
+    color: var(--sub); font-family: var(--mono); font-size: 13px;
+    border-radius: var(--radius-sm); cursor: pointer;
+    transition: color .15s, border-color .15s;
+  }
+  .term-placeholder-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+  /* ── New terminal dialog overlay ── */
+  .new-term-overlay {
+    position: fixed; inset: 0; z-index: 400;
+    background: rgba(0,0,0,.55); backdrop-filter: blur(4px);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .new-term-dialog {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 12px; width: 380px; max-height: 70vh;
+    display: flex; flex-direction: column; overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0,0,0,.4);
+  }
+  .new-term-dialog-header {
+    padding: 16px 20px; display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid var(--border); flex-shrink: 0;
+  }
+  .new-term-dialog-header span {
+    font-size: 14px; font-weight: 600; color: var(--text);
+  }
+  .new-term-dialog-close {
+    background: none; border: none; color: var(--muted); font-size: 18px;
+    cursor: pointer; padding: 2px 6px; border-radius: 4px;
+    transition: color .12s, background .12s; line-height: 1;
+  }
+  .new-term-dialog-close:hover { color: var(--text); background: rgba(255,255,255,.06); }
+  .new-term-dialog-list {
+    flex: 1; overflow-y: auto; padding: 6px 0;
+  }
+  .new-term-item {
+    padding: 10px 20px; cursor: pointer; transition: background .1s;
+  }
+  .new-term-item:hover { background: rgba(var(--accent-rgb),.1); }
+  .new-term-item-name {
+    font-size: 13px; font-weight: 600; color: var(--text);
+  }
+  .new-term-item-path {
+    font-size: 11px; color: var(--muted); margin-top: 2px;
+  }
+  .new-term-item-sep {
+    height: 1px; background: var(--border); margin: 0 20px;
+  }
+
   /* ── Mobile detail header (replaces topbar when a pane is open) ── */
   .term-detail-header { display: none; }
 
@@ -477,6 +529,46 @@ async function newWindow(cwd) {
   } catch(e) { console.warn('new-window:', e); }
 }
 
+// ── New terminal dialog ───────────────────────────────────────────────────────
+async function openNewTermDialog() {
+  const overlay = document.getElementById('new-term-overlay');
+  const list = document.getElementById('new-term-list');
+  // Static home option
+  let html = `<div class="new-term-item" data-cwd="">
+    <div class="new-term-item-name">~ 主目录</div>
+    <div class="new-term-item-path">在用户 home 目录打开</div>
+  </div>`;
+  // Fetch projects
+  try {
+    const res = await fetch('/api/projects', { headers: _authHeaders() });
+    if (res.ok) {
+      const projects = await res.json();
+      for (const p of projects) {
+        if (!p.path) continue;
+        html += `<div class="new-term-item-sep"></div>`;
+        html += `<div class="new-term-item" data-cwd="${escHtml(p.path)}">
+          <div class="new-term-item-name">${escHtml(p.name || p.project_id)}</div>
+          <div class="new-term-item-path">${escHtml(p.path)}</div>
+        </div>`;
+      }
+    }
+  } catch(e) { console.warn('fetch projects:', e); }
+  list.innerHTML = html;
+  list.querySelectorAll('.new-term-item').forEach(el => {
+    el.addEventListener('click', () => pickNewTerm(el.dataset.cwd || null));
+  });
+  overlay.style.display = '';
+}
+
+function closeNewTermDialog() {
+  document.getElementById('new-term-overlay').style.display = 'none';
+}
+
+function pickNewTerm(cwd) {
+  closeNewTermDialog();
+  newWindow(cwd);
+}
+
 // ── Init ──────────────────────────────────────────────────────────────────────
 async function init() {
   await _initAuth();
@@ -510,7 +602,7 @@ init();
   <div class="term-sidebar">
     <div class="term-sidebar-header">
       <span>所有终端</span>
-      <button class="term-new-btn" onclick="newWindow(null)" title="新建终端窗口">+</button>
+      <button class="term-new-btn" onclick="openNewTermDialog()" title="新建终端窗口">+</button>
     </div>
     <div id="term-pane-list">
       <div class="term-empty-sidebar">正在加载…</div>
@@ -528,8 +620,20 @@ init();
       <div style="font-size:28px;opacity:.3">⬛</div>
       <div>从左侧选择一个终端</div>
       <div><code>mira term &lt;project&gt;</code> 启动新会话</div>
+      <button class="term-placeholder-btn" onclick="openNewTermDialog()">+ 新建终端窗口</button>
     </div>
     <iframe id="ttyd-frame" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" allow="clipboard-read; clipboard-write"></iframe>
+  </div>
+</div>
+
+<!-- New terminal dialog (hidden by default) -->
+<div class="new-term-overlay" id="new-term-overlay" style="display:none" onclick="if(event.target===this)closeNewTermDialog()">
+  <div class="new-term-dialog">
+    <div class="new-term-dialog-header">
+      <span>新建终端窗口</span>
+      <button class="new-term-dialog-close" onclick="closeNewTermDialog()">&times;</button>
+    </div>
+    <div class="new-term-dialog-list" id="new-term-list"></div>
   </div>
 </div>
 
