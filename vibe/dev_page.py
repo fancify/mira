@@ -63,7 +63,7 @@ def render_dev_page() -> str:
     transition: background .25s, box-shadow .25s;
   }
   .term-pane-dot.inactive { background: var(--border); }
-  .term-pane-dot.idle     { background: var(--green); opacity: .35; }
+  .term-pane-dot.idle     { background: var(--green); }
   .term-pane-dot.running  { background: var(--green); box-shadow: 0 0 6px rgba(63,185,80,.6); animation: pane-pulse .9s ease-in-out infinite; }
   .term-pane-dot.confirm  { background: var(--orange); box-shadow: 0 0 6px var(--orange); animation: pane-pulse 1.4s ease-in-out infinite; }
   .term-pane-dot.done     { background: var(--green); }
@@ -658,8 +658,7 @@ init();
     </div>
     <div id="term-placeholder" class="term-placeholder">
       <div style="font-size:28px;opacity:.3">⬛</div>
-      <div>从左侧选择一个终端</div>
-      <div><code>mira term &lt;project&gt;</code> 启动新会话</div>
+      <div>从左侧选择一个项目，或者：</div>
       <button class="term-placeholder-btn" onclick="openNewTermDialog()">+ 新建终端窗口</button>
     </div>
     <iframe id="ttyd-frame" allow="clipboard-read; clipboard-write"></iframe>
