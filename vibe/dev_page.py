@@ -7,7 +7,7 @@ def render_dev_page() -> str:
     page_css = r"""
   /* ── Page reset (lock body to viewport, terminal handles its own scroll) ── */
   :root { --app-h: 100vh; }
-  html, body { margin: 0; padding: 0; height: 100vh; overflow: hidden; overscroll-behavior: none; }
+  html, body { margin: 0; padding: 0; height: 100vh; overflow: hidden; overscroll-behavior: none; width: 100%; max-width: 100vw; }
   /* Lock scroll when mobile terminal detail is open */
   body.detail-locked { position: fixed; width: 100%; touch-action: none; }
 
@@ -124,9 +124,9 @@ def render_dev_page() -> str:
   .term-placeholder code { color: var(--sub); font-size: 11px; }
   #ttyd-frame {
     flex: 1; border: none; display: none; background: #0d1117;
-    width: 100%; min-height: 0;
+    width: 100%; max-width: 100%; min-height: 0;
     -webkit-overflow-scrolling: touch;
-    overflow: auto;
+    overflow: hidden;
   }
   #ttyd-frame.visible { display: block; }
 
@@ -238,12 +238,14 @@ def render_dev_page() -> str:
       height: var(--app-h, 100dvh); z-index: 200;
       background: var(--bg);
       overscroll-behavior: none;
+      overflow: hidden; max-width: 100vw;
     }
     /* On mobile, iframe is display-only; input goes through the input bar */
     #ttyd-frame.visible {
-      display: block; flex: 1; width: 100%; min-height: 0;
+      display: block; flex: 1; width: 100%; max-width: 100%; min-height: 0;
       -webkit-overflow-scrolling: touch;
       overscroll-behavior: contain;
+      overflow: hidden;
       pointer-events: none;
     }
 
@@ -276,7 +278,7 @@ def render_dev_page() -> str:
     .mobile-cmd-input {
       flex: 1; min-height: 36px; max-height: 120px;
       background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
-      color: var(--text); font-family: var(--mono); font-size: 14px;
+      color: var(--text); font-family: var(--mono); font-size: 16px;
       padding: 8px 12px; outline: none; resize: none;
       line-height: 1.4; overflow-y: auto;
     }
