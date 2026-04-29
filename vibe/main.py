@@ -1436,8 +1436,9 @@ async def terminal_focus(request: Request, body: dict):
     if not m:
         raise HTTPException(status_code=400, detail="invalid target format")
     session, window, _pane = m.group(1), m.group(2), m.group(3)
-    # Switch the tmux session's active window, then select the pane
-    subprocess.run([_TMUX_BIN, "switch-client", "-t", f"{session}:{window}"],
+    # Set the session's active window (works regardless of which client),
+    # then select the target pane within that window.
+    subprocess.run([_TMUX_BIN, "select-window", "-t", f"{session}:{window}"],
                    env=_TMUX_ENV, capture_output=True)
     subprocess.run([_TMUX_BIN, "select-pane", "-t", target],
                    env=_TMUX_ENV, capture_output=True)

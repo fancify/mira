@@ -7,7 +7,9 @@ def render_dev_page() -> str:
     page_css = r"""
   /* ── Page reset (lock body to viewport, terminal handles its own scroll) ── */
   :root { --app-h: 100vh; }
-  html, body { margin: 0; padding: 0; height: 100vh; overflow: hidden; }
+  html, body { margin: 0; padding: 0; height: 100vh; overflow: hidden; overscroll-behavior: none; }
+  /* Lock scroll when mobile terminal detail is open */
+  body.detail-locked { position: fixed; width: 100%; touch-action: none; }
 
   /* ── Main layout ── */
   .dev-page {
@@ -232,33 +234,48 @@ def render_dev_page() -> str:
       display: flex; position: fixed; inset: 0; top: 0;
       height: var(--app-h, 100dvh); z-index: 200;
       background: var(--bg);
+      overscroll-behavior: none;
     }
     #ttyd-frame.visible {
       display: block; flex: 1; width: 100%; min-height: 0;
       -webkit-overflow-scrolling: touch;
+      touch-action: manipulation;
+      overscroll-behavior: contain;
     }
   }
 """
 
     page_js = r"""
+// ── Mobile detection ──────────────────────────────────────────────────────────
+var _isMobile = window.matchMedia('(max-width: 900px)').matches;
+
 // ── Visual viewport tracking (mobile keyboard adaptation) ─────────────────────
 (function() {
-  var _rafPending = false;
+  var _debounceTimer = null;
+  var _lastH = 0;
   function u() {
-    if (_rafPending) return;
-    _rafPending = true;
-    requestAnimationFrame(function() {
-      _rafPending = false;
-      var h;
-      if (window.visualViewport) {
-        h = window.visualViewport.height;
-      } else {
-        h = window.innerHeight;
-      }
+    var h;
+    if (window.visualViewport) {
+      h = Math.round(window.visualViewport.height);
+    } else {
+      h = window.innerHeight;
+    }
+    // Skip if height hasn't changed (avoid unnecessary layout recalcs)
+    if (h === _lastH) return;
+    _lastH = h;
+    // On mobile detail view, debounce to avoid thrashing during keyboard animation
+    var inDetail = document.getElementById('dev-page') &&
+                   document.getElementById('dev-page').classList.contains('detail-open');
+    if (_isMobile && inDetail) {
+      clearTimeout(_debounceTimer);
+      _debounceTimer = setTimeout(function() {
+        document.documentElement.style.setProperty('--app-h', h + 'px');
+        window.scrollTo(0, 0);
+      }, 150);
+    } else {
       document.documentElement.style.setProperty('--app-h', h + 'px');
-      // Prevent iOS from scrolling the body behind the app
       window.scrollTo(0, 0);
-    });
+    }
   }
   u();
   if (window.visualViewport) {
@@ -329,7 +346,6 @@ document.addEventListener('click', function() {
 
 // ── Background polling (sidebar dots only) ────────────────────────────────────
 let _bgPollTimer = null;
-var _isMobile = window.matchMedia('(max-width: 900px)').matches;
 async function _bgPoll() {
   var inDetail = document.getElementById('dev-page').classList.contains('detail-open');
   // On mobile detail view: skip ALL polling to avoid any interference with IME/input
@@ -356,11 +372,11 @@ async function _bgPoll() {
 
 // ── Pane list (grouped by project) ────────────────────────────────────────────
 let _firstLoad = true;
-async function loadPanes() {
+async function loadPanes(forceRebuild) {
   if (!_isAdmin) { openLoginModal(init); return; }
   // On mobile detail view: skip entirely to protect iframe focus/IME
   var inDetail = document.getElementById('dev-page').classList.contains('detail-open');
-  if (_isMobile && inDetail && !_firstLoad) return;
+  if (_isMobile && inDetail && !_firstLoad && !forceRebuild) return;
   try {
     const res = await fetch('/api/dev/panes', { headers: _authHeaders() });
     if (res.status === 401) { openLoginModal(init); return; }
@@ -419,7 +435,7 @@ async function loadPanes() {
     // Skip DOM rebuild if user is in detail view (mobile terminal active)
     // to avoid interrupting IME/voice input in the iframe
     var inDetail = document.getElementById('dev-page').classList.contains('detail-open');
-    if (inDetail) {
+    if (inDetail && !forceRebuild) {
       // Only update status dots without touching DOM structure
       for (const p of panes) {
         const row = document.querySelector('.term-pane-row[data-target="' + CSS.escape(p.target) + '"]');
@@ -546,6 +562,8 @@ async function selectPane(target, cmd) {
   const rows = document.querySelectorAll('.term-pane-row');
   rows.forEach(r => r.classList.toggle('active', r.dataset.target === target));
   document.getElementById('dev-page').classList.add('detail-open');
+  // Lock body scroll on mobile to prevent iOS rubber-banding
+  if (_isMobile) document.body.classList.add('detail-locked');
 
   // Update mobile detail header title with project_name from the row
   const activeRow = document.querySelector(`.term-pane-row[data-target="${CSS.escape(target)}"]`);
@@ -555,16 +573,17 @@ async function selectPane(target, cmd) {
     titleEl.textContent = txt ? txt.textContent : target;
   }
 
-  // Tell tmux to switch to this pane
+  // Tell tmux to switch to this pane, then show terminal
   try {
-    await fetch('/api/terminal/focus', {
+    var focusRes = await fetch('/api/terminal/focus', {
       method: 'POST',
       headers: _authHeaders({'Content-Type': 'application/json'}),
       body: JSON.stringify({ target })
     });
-  } catch(e) {}
+    if (!focusRes.ok) console.warn('focus failed:', focusRes.status);
+  } catch(e) { console.warn('focus error:', e); }
 
-  // Show iframe (already loaded)
+  // Show iframe — small delay to let tmux propagate the switch to ttyd
   showTerminal();
 }
 
@@ -617,17 +636,36 @@ function showPlaceholder() {
   document.getElementById('ttyd-frame').classList.remove('visible');
   document.getElementById('term-placeholder').style.display = '';
   document.getElementById('dev-page').classList.remove('detail-open');
+  document.body.classList.remove('detail-locked');
 }
 
 // ── New window ────────────────────────────────────────────────────────────────
 async function newWindow(cwd) {
   try {
+    // Snapshot existing targets before creating
+    var oldTargets = new Set(
+      Array.from(document.querySelectorAll('.term-pane-row')).map(r => r.dataset.target)
+    );
     await fetch('/api/terminal/new-window', {
       method: 'POST',
       headers: _authHeaders({'Content-Type': 'application/json'}),
       body: JSON.stringify({ cwd: cwd || null })
     });
-    setTimeout(loadPanes, 600);
+    // Poll until the new pane appears (tmux needs a moment)
+    for (var _attempt = 0; _attempt < 6; _attempt++) {
+      await new Promise(r => setTimeout(r, 500));
+      var res2 = await fetch('/api/dev/panes', { headers: _authHeaders() });
+      if (!res2.ok) continue;
+      var panes2 = await res2.json();
+      var newPane = panes2.find(p => !oldTargets.has(p.target));
+      if (newPane) {
+        await loadPanes(true);
+        selectPane(newPane.target, newPane.command || '');
+        return;
+      }
+    }
+    // Fallback: just reload list
+    await loadPanes(true);
   } catch(e) { console.warn('new-window:', e); }
 }
 
@@ -640,11 +678,16 @@ async function openNewTermDialog() {
     <div class="new-term-item-name">~ 主目录</div>
     <div class="new-term-item-path">在用户 home 目录打开</div>
   </div>`;
-  // Fetch projects
+  // Fetch projects (sorted by last activity, same as homepage)
   try {
     const res = await fetch('/api/projects', { headers: _authHeaders() });
     if (res.ok) {
       const projects = await res.json();
+      projects.sort((a, b) => {
+        const ta = (a.claude_activity && a.claude_activity.last_session) || '';
+        const tb = (b.claude_activity && b.claude_activity.last_session) || '';
+        return tb.localeCompare(ta);
+      });
       for (const p of projects) {
         if (!p.path) continue;
         html += `<div class="new-term-item-sep"></div>`;
