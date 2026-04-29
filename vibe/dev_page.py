@@ -63,7 +63,7 @@ def render_dev_page() -> str:
     transition: background .25s, box-shadow .25s;
   }
   .term-pane-dot.inactive { background: var(--border); }
-  .term-pane-dot.idle     { background: var(--muted); opacity: .45; }
+  .term-pane-dot.idle     { background: var(--green); opacity: .35; }
   .term-pane-dot.running  { background: var(--green); box-shadow: 0 0 6px rgba(63,185,80,.6); animation: pane-pulse .9s ease-in-out infinite; }
   .term-pane-dot.confirm  { background: var(--orange); box-shadow: 0 0 6px var(--orange); animation: pane-pulse 1.4s ease-in-out infinite; }
   .term-pane-dot.done     { background: var(--green); }
@@ -291,30 +291,20 @@ document.addEventListener('click', function() {
 
 // ── Background polling (sidebar dots only) ────────────────────────────────────
 let _bgPollTimer = null;
-async function _detectPaneState(target) {
-  try {
-    const res = await fetch(
-      '/api/terminals/' + encodeURIComponent(target) + '/output?lines=30',
-      { headers: _authHeaders() });
-    if (!res.ok) return;
-    const data = await res.json();
-    _onStateChange(target, _detectState(data.output || ''));
-  } catch(e) {}
-}
-// Initial detection: check all panes once to get out of 'inactive'
-async function _initialDetect() {
-  const rows = document.querySelectorAll('.term-pane-row');
-  for (const row of rows) await _detectPaneState(row.dataset.target);
-}
-// Ongoing poll: only re-check 'running' panes (others are stable)
 async function _bgPoll() {
   const rows = document.querySelectorAll('.term-pane-row');
   for (const row of rows) {
-    const st = _paneState[row.dataset.target];
-    if (st && st !== 'running') continue;
-    await _detectPaneState(row.dataset.target);
+    const target = row.dataset.target;
+    try {
+      const res = await fetch(
+        '/api/terminals/' + encodeURIComponent(target) + '/output?lines=30',
+        { headers: _authHeaders() });
+      if (!res.ok) continue;
+      const data = await res.json();
+      _onStateChange(target, _detectState(data.output || ''));
+    } catch(e) {}
   }
-  _bgPollTimer = setTimeout(_bgPoll, 15000);
+  _bgPollTimer = setTimeout(_bgPoll, 10000);
 }
 
 // ── Pane list (grouped by project) ────────────────────────────────────────────
@@ -625,9 +615,8 @@ async function init() {
   if (!_isAdmin) { openLoginModal(init); return; }
   // ttyd iframe is loaded lazily on first pane click (avoids basic-auth dialog on page load)
   await loadPanes();
-  await _initialDetect();   // one-time: detect state for all panes
   setInterval(loadPanes, 5000);
-  _bgPoll();                // ongoing: only re-check 'running' panes every 15s
+  _bgPoll();
 }
 init();
 """
