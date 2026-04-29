@@ -88,7 +88,7 @@ function _escSettings(s) {
 const SKINS = [
   { id: 'default',      name: '深空默认', preview: ['#0f1117', '#4f46e5'] },
   { id: 'claude-light',  name: '珊瑚橙',  preview: ['#f5f3ef', '#da7756'] },
-  { id: 'claude-dark',   name: '黑曜',    preview: ['#131313', '#cdcdcd'] },
+  { id: 'claude-dark',   name: '黑曜',    preview: ['#131313', '#09B83E'] },
   { id: 'neon-pixel',   name: '霓虹像素', preview: ['#0a0a0a', '#ff00ff'] },
   { id: 'pixel-cyber',  name: '像素赛博', preview: ['#000d1a', '#ff0066'] },
 ];
