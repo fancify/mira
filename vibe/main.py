@@ -1445,6 +1445,20 @@ async def terminal_focus(request: Request, body: dict):
     return {"ok": True}
 
 
+@api.post("/api/terminals/{target:path}/scroll")
+async def terminal_scroll(request: Request, target: str, body: dict):
+    """Scroll a tmux pane using copy-mode (for mobile touch scroll)."""
+    if not _is_admin(request):
+        raise HTTPException(status_code=401, detail="需要管理员权限")
+    from vibe.tmux_bridge import scroll_pane
+    direction = (body.get("direction") or "").strip()
+    if direction not in ("up", "down", "page-up", "page-down", "top", "bottom", "exit"):
+        raise HTTPException(status_code=400, detail="invalid direction")
+    lines = min(int(body.get("lines", 5)), 50)
+    scroll_pane(target, direction, lines)
+    return {"ok": True}
+
+
 @api.post("/api/terminal/new-window")
 async def terminal_new_window(request: Request, body: dict):
     """Create a new tmux window, optionally in a project directory."""

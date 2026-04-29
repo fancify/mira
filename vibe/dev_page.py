@@ -122,13 +122,17 @@ def render_dev_page() -> str:
     color: var(--muted); font-size: 13px; text-align: center; gap: 10px; line-height: 1.7;
   }
   .term-placeholder code { color: var(--sub); font-size: 11px; }
+  .term-iframe-wrap {
+    flex: 1; position: relative; min-height: 0; overflow: hidden;
+  }
   #ttyd-frame {
-    flex: 1; border: none; display: none; background: #0d1117;
-    width: 100%; max-width: 100%; min-height: 0;
-    -webkit-overflow-scrolling: touch;
+    border: none; display: none; background: #0d1117;
+    width: 100%; max-width: 100%; height: 100%;
     overflow: hidden;
   }
   #ttyd-frame.visible { display: block; }
+  /* Touch overlay for mobile scroll gestures (invisible on desktop) */
+  .term-touch-overlay { display: none; }
 
   /* ── Empty-state new terminal button ── */
   .term-placeholder-btn {
@@ -242,12 +246,24 @@ def render_dev_page() -> str:
     }
     /* On mobile, iframe is display-only; input goes through the input bar */
     #ttyd-frame.visible {
-      display: block; flex: 1; width: 100%; max-width: 100%; min-height: 0;
-      -webkit-overflow-scrolling: touch;
-      overscroll-behavior: contain;
+      display: block; width: 100%; max-width: 100%; height: 100%;
       overflow: hidden;
       pointer-events: none;
     }
+    /* Touch overlay: captures swipe gestures → tmux scroll, blocks keyboard popup */
+    .term-touch-overlay {
+      display: block; position: absolute; inset: 0; z-index: 5;
+      touch-action: pan-y; cursor: default;
+    }
+    /* Scroll mode indicator */
+    .term-scroll-badge {
+      position: absolute; top: 8px; right: 8px; z-index: 6;
+      background: rgba(var(--accent-rgb), .85); color: #fff;
+      font-size: 11px; padding: 2px 8px; border-radius: 10px;
+      font-family: var(--mono); pointer-events: none;
+      opacity: 0; transition: opacity .2s;
+    }
+    .term-scroll-badge.visible { opacity: 1; }
 
     /* ── Mobile input bar ── */
     .mobile-input-bar {
@@ -795,11 +811,75 @@ async function _sendToTerminal(keys) {
   } catch(e) { console.warn('send error:', e); }
 }
 
+var _inScrollMode = false;
+var _scrollBadgeTimer = null;
+
+async function _scrollTerminal(direction, lines) {
+  if (!_currentTarget) return;
+  try {
+    await fetch('/api/terminals/' + encodeURIComponent(_currentTarget) + '/scroll', {
+      method: 'POST',
+      headers: _authHeaders({'Content-Type': 'application/json'}),
+      body: JSON.stringify({ direction: direction, lines: lines || 5 })
+    });
+    // Show scroll badge briefly
+    _inScrollMode = (direction !== 'exit');
+    var badge = document.getElementById('term-scroll-badge');
+    if (badge) {
+      badge.classList.toggle('visible', _inScrollMode);
+      clearTimeout(_scrollBadgeTimer);
+      if (_inScrollMode) {
+        _scrollBadgeTimer = setTimeout(function() {
+          badge.classList.remove('visible');
+        }, 1500);
+      }
+    }
+  } catch(e) { console.warn('scroll error:', e); }
+}
+
 function _initMobileInput() {
   if (!_isMobile) return;
   var input = document.getElementById('mobile-cmd-input');
   var sendBtn = document.getElementById('mobile-send-btn');
   if (!input || !sendBtn) return;
+
+  // ── Touch-to-scroll on terminal overlay ──
+  var overlay = document.getElementById('term-touch-overlay');
+  if (overlay) {
+    var _touchStartY = 0;
+    var _touchAccum = 0;
+    var _scrollThreshold = 30; // px per scroll step
+
+    overlay.addEventListener('touchstart', function(e) {
+      _touchStartY = e.touches[0].clientY;
+      _touchAccum = 0;
+    }, { passive: true });
+
+    overlay.addEventListener('touchmove', function(e) {
+      var dy = _touchStartY - e.touches[0].clientY; // positive = scroll up (see older)
+      _touchStartY = e.touches[0].clientY;
+      _touchAccum += dy;
+      if (Math.abs(_touchAccum) >= _scrollThreshold) {
+        var steps = Math.floor(Math.abs(_touchAccum) / _scrollThreshold);
+        _touchAccum = _touchAccum % _scrollThreshold;
+        _scrollTerminal(dy > 0 ? 'up' : 'down', steps * 3);
+      }
+    }, { passive: true });
+
+    overlay.addEventListener('touchend', function() {
+      _touchAccum = 0;
+    }, { passive: true });
+
+    // Double-tap to exit scroll mode
+    var _lastTap = 0;
+    overlay.addEventListener('touchend', function(e) {
+      var now = Date.now();
+      if (now - _lastTap < 300 && _inScrollMode) {
+        _scrollTerminal('exit');
+      }
+      _lastTap = now;
+    });
+  }
 
   // Auto-resize textarea height
   function autoResize() {
@@ -830,13 +910,23 @@ function _initMobileInput() {
     _sendMobileCmd();
   });
 
-  // Special key buttons
+  // Special key buttons + scroll buttons
   document.getElementById('mobile-keys-row').addEventListener('click', function(e) {
     var btn = e.target.closest('.mobile-key-btn');
     if (!btn) return;
+    // Scroll buttons
+    var scrollDir = btn.dataset.scroll;
+    if (scrollDir) {
+      _scrollTerminal(scrollDir);
+      return;
+    }
+    // Regular special keys
     var keyName = btn.dataset.key;
     var seq = _SPECIAL_KEYS[keyName];
-    if (seq) _sendToTerminal(seq);
+    if (seq) {
+      if (_inScrollMode) _scrollTerminal('exit');
+      _sendToTerminal(seq);
+    }
   });
 }
 
@@ -844,6 +934,8 @@ async function _sendMobileCmd() {
   var input = document.getElementById('mobile-cmd-input');
   var text = input.value;
   if (!text) return;
+  // Exit scroll mode first
+  if (_inScrollMode) await _scrollTerminal('exit');
   // Add to history (dedup, max 100)
   _cmdHistory = _cmdHistory.filter(function(c) { return c !== text; });
   _cmdHistory.push(text);
@@ -932,7 +1024,11 @@ init();
       <div>从左侧选择一个项目，或者：</div>
       <button class="term-placeholder-btn" onclick="openNewTermDialog()">+ 新建终端窗口</button>
     </div>
-    <iframe id="ttyd-frame" allow="clipboard-read; clipboard-write"></iframe>
+    <div class="term-iframe-wrap" id="term-iframe-wrap">
+      <div class="term-touch-overlay" id="term-touch-overlay"></div>
+      <div class="term-scroll-badge" id="term-scroll-badge">滚动模式</div>
+      <iframe id="ttyd-frame" allow="clipboard-read; clipboard-write"></iframe>
+    </div>
     <!-- Mobile input bar: bypasses iframe input issues via tmux send-keys -->
     <div class="mobile-input-bar" id="mobile-input-bar">
       <div class="mobile-keys-row" id="mobile-keys-row">
@@ -947,6 +1043,8 @@ init();
         <button class="mobile-key-btn" data-key="Ctrl+A">行首</button>
         <button class="mobile-key-btn" data-key="Ctrl+E">行尾</button>
         <button class="mobile-key-btn" data-key="Ctrl+U">删行</button>
+        <button class="mobile-key-btn" data-scroll="page-up">PgUp</button>
+        <button class="mobile-key-btn" data-scroll="page-down">PgDn</button>
       </div>
       <div class="mobile-input-row">
         <textarea class="mobile-cmd-input" id="mobile-cmd-input" rows="1"
