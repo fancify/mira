@@ -185,6 +185,31 @@
   --font-mono: 'SF Mono', Consolas, monospace;
 }
 
+[data-theme="claude-dark"] {
+  --bg: #262624;
+  --card: #1f1e1d;
+  --card-deep: #141413;
+  --border: rgba(250,249,245,0.1);
+  --border-subtle-rgb: 100,98,92;
+  --accent: #da7756;
+  --accent-dim: #c4654a;
+  --accent-rgb: 218,119,86;
+  --accent-light: #e8956f;
+  --accent-light-rgb: 232,149,111;
+  --text: #faf9f5;
+  --text-sec: #bcb9b0;
+  --text-muted: #6b6966;
+  --text-deep: #3a3937;
+  --green: #5cb85c;
+  --green-dim: #4cae4c;
+  --orange: #e5a84b;
+  --red: #e06c6c;
+  --purple: #a78bfa;
+  --yellow: #d4a84b;
+  --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'SF Mono', Consolas, monospace;
+}
+
 html { overflow-x: hidden; }
 
 body {
@@ -3660,7 +3685,8 @@ async function sendChat() {
 // ─── Skin System ──────────────────────────────────────────────────────────────
 const SKINS = [
   { id: 'default', name: '深空默认', preview: ['#0f1117', '#4f46e5'] },
-  { id: 'claude-light', name: '素白', preview: ['#f5f3ef', '#da7756'] },
+  { id: 'claude-light', name: '珊瑚橙', preview: ['#f5f3ef', '#da7756'] },
+  { id: 'claude-dark',  name: '黑曜', preview: ['#262624', '#da7756'] },
   { id: 'neon-pixel', name: '霓虹像素', preview: ['#0a0a0a', '#ff00ff'] },
   { id: 'pixel-cyber', name: '像素赛博', preview: ['#000d1a', '#ff0066'] },
 ];

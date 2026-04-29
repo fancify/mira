@@ -54,6 +54,13 @@ def theme_vars_css(extra_vars: str = "") -> str:
         "    --green: #16a34a; --orange: #d97706; --red: #dc2626; --yellow: #ca8a04;\n"
         "    --radius: 12px; --radius-sm: 8px;\n"
         "  }\n"
+        "  [data-theme=\"claude-dark\"] {\n"
+        "    --bg: #262624; --panel: rgba(31,30,29,.95); --border: rgba(250,249,245,.1);\n"
+        "    --text: #faf9f5; --sub: #bcb9b0; --muted: #6b6966;\n"
+        "    --accent: #da7756; --accent-rgb: 218,119,86;\n"
+        "    --green: #5cb85c; --orange: #e5a84b; --red: #e06c6c; --yellow: #d4a84b;\n"
+        "    --radius: 12px; --radius-sm: 8px;\n"
+        "  }\n"
         "  body { background: var(--bg); color: var(--text); font-family: var(--mono); min-height: 100vh; overflow-x: hidden; }\n"
     )
 
@@ -283,7 +290,8 @@ async function doLogin() {
 // ── Skin ──────────────────────────────────────────────────────────────────────
 const SKINS = [
   { id: 'default',     name: '深空默认', preview: ['#0f1117', '#4f46e5'] },
-  { id: 'claude-light', name: '素白', preview: ['#f5f3ef', '#da7756'] },
+  { id: 'claude-light', name: '珊瑚橙', preview: ['#f5f3ef', '#da7756'] },
+  { id: 'claude-dark',  name: '黑曜', preview: ['#262624', '#da7756'] },
   { id: 'neon-pixel',  name: '霓虹像素', preview: ['#0a0a0a', '#ff00ff'] },
   { id: 'pixel-cyber', name: '像素赛博', preview: ['#000d1a', '#ff0066'] },
 ];
