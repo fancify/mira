@@ -133,6 +133,9 @@ def render_dev_page() -> str:
   #ttyd-frame.visible { display: block; }
   /* Touch overlay for mobile scroll gestures (invisible on desktop) */
   .term-touch-overlay { display: none; }
+  /* Mobile-only elements hidden on desktop */
+  .mobile-term-output { display: none; }
+  .mobile-input-bar { display: none; }
 
   /* ── Empty-state new terminal button ── */
   .term-placeholder-btn {
@@ -244,26 +247,22 @@ def render_dev_page() -> str:
       overscroll-behavior: none;
       overflow: hidden; max-width: 100vw;
     }
-    /* On mobile, iframe is display-only; input goes through the input bar */
-    #ttyd-frame.visible {
-      display: block; width: 100%; max-width: 100%; height: 100%;
-      overflow: hidden;
-      pointer-events: none;
+    /* Mobile: hide iframe completely — use independent WebSocket + ANSI renderer */
+    #ttyd-frame { display: none !important; }
+    .term-touch-overlay { display: none !important; }
+    .term-scroll-badge { display: none !important; }
+    .term-iframe-wrap { flex: none; height: 0; min-height: 0; overflow: hidden; }
+
+    /* Mobile terminal text output (WebSocket-fed, ANSI-colored) */
+    .mobile-term-output.visible {
+      display: block; flex: 1; min-height: 0;
+      background: #0d1117; color: #abb2bf;
+      font-family: var(--mono); font-size: 13px; line-height: 1.35;
+      padding: 6px 8px; margin: 0;
+      overflow-y: auto; -webkit-overflow-scrolling: touch;
+      white-space: pre; overflow-x: auto;
+      overscroll-behavior: contain;
     }
-    /* Touch overlay: captures swipe gestures → tmux scroll, blocks keyboard popup */
-    .term-touch-overlay {
-      display: block; position: absolute; inset: 0; z-index: 5;
-      touch-action: pan-y; cursor: default;
-    }
-    /* Scroll mode indicator */
-    .term-scroll-badge {
-      position: absolute; top: 8px; right: 8px; z-index: 6;
-      background: rgba(var(--accent-rgb), .85); color: #fff;
-      font-size: 11px; padding: 2px 8px; border-radius: 10px;
-      font-family: var(--mono); pointer-events: none;
-      opacity: 0; transition: opacity .2s;
-    }
-    .term-scroll-badge.visible { opacity: 1; }
 
     /* ── Mobile input bar ── */
     .mobile-input-bar {
@@ -641,17 +640,19 @@ async function selectPane(target, cmd) {
     titleEl.textContent = txt ? txt.textContent : target;
   }
 
-  // Tell tmux to switch to this pane, then show terminal
-  try {
-    var focusRes = await fetch('/api/terminal/focus', {
-      method: 'POST',
-      headers: _authHeaders({'Content-Type': 'application/json'}),
-      body: JSON.stringify({ target })
-    });
-    if (!focusRes.ok) console.warn('focus failed:', focusRes.status);
-  } catch(e) { console.warn('focus error:', e); }
+  // Desktop: tell tmux to switch focus (affects ttyd iframe).
+  // Mobile: skip — uses independent WebSocket stream, no shared state.
+  if (!_isMobile) {
+    try {
+      var focusRes = await fetch('/api/terminal/focus', {
+        method: 'POST',
+        headers: _authHeaders({'Content-Type': 'application/json'}),
+        body: JSON.stringify({ target })
+      });
+      if (!focusRes.ok) console.warn('focus failed:', focusRes.status);
+    } catch(e) { console.warn('focus error:', e); }
+  }
 
-  // Show iframe — small delay to let tmux propagate the switch to ttyd
   showTerminal();
 }
 
@@ -676,18 +677,24 @@ async function _copyTmuxBuffer() {
 }
 
 function showTerminal() {
+  document.getElementById('term-placeholder').style.display = 'none';
+
+  if (_isMobile) {
+    // Mobile: show ANSI-rendered output + start WebSocket stream
+    document.getElementById('mobile-term-output').classList.add('visible');
+    if (_currentTarget) _connectTermWs(_currentTarget);
+    return;
+  }
+
+  // Desktop: load ttyd iframe
   const frame = document.getElementById('ttyd-frame');
   if (!frame.src) {
-    frame.src = '/terminal/';   // lazy-load on first show
-    // Suppress beforeunload dialog from ttyd iframe
+    frame.src = '/terminal/';
     frame.addEventListener('load', () => {
       try {
-        // Suppress beforeunload dialog from ttyd iframe
         frame.contentWindow.addEventListener('beforeunload', e => {
           e.stopImmediatePropagation();
         }, true);
-        // Cmd+C clipboard bridge: read tmux paste buffer → system clipboard
-        // (navigator.clipboard is unavailable on HTTP, so we use execCommand)
         frame.contentWindow.document.addEventListener('keydown', e => {
           if ((e.metaKey || e.ctrlKey) && e.key === 'c' && !e.shiftKey) {
             _copyTmuxBuffer();
@@ -696,12 +703,13 @@ function showTerminal() {
       } catch(e) {}
     });
   }
-  document.getElementById('term-placeholder').style.display = 'none';
   frame.classList.add('visible');
 }
 
 function showPlaceholder() {
   document.getElementById('ttyd-frame').classList.remove('visible');
+  document.getElementById('mobile-term-output').classList.remove('visible');
+  _disconnectTermWs();
   document.getElementById('term-placeholder').style.display = '';
   document.getElementById('dev-page').classList.remove('detail-open');
   document.body.classList.remove('detail-locked');
@@ -799,6 +807,100 @@ var _SPECIAL_KEYS = {
   'Up':     '\x1b[A',
   'Down':   '\x1b[B',
 };
+
+// ── ANSI-to-HTML converter (supports 16/256/truecolor + bold) ────────────────
+var _ANSI16 = [
+  '#1a1a2e','#e06c75','#98c379','#e5c07b','#61afef','#c678dd','#56b6c2','#abb2bf',
+  '#5c6370','#f47067','#8ae234','#fce94f','#729fcf','#d4a0e8','#34e2e2','#ffffff'
+];
+function _ansi256(n) {
+  if (n < 16) return _ANSI16[n];
+  if (n >= 232) { var g = (n - 232) * 10 + 8; return 'rgb('+g+','+g+','+g+')'; }
+  n -= 16;
+  return 'rgb('+(Math.floor(n/36)*51)+','+(Math.floor((n%36)/6)*51)+','+((n%6)*51)+')';
+}
+function _stripAnsi(text) { return text.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, ''); }
+function _ansiToHtml(raw) {
+  // Strip non-SGR escape sequences (cursor, erase, OSC, etc.)
+  var text = raw.replace(/\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)/g, ''); // OSC
+  text = text.replace(/\x1b\[[\?]?[0-9;]*[A-LN-Za-ln-z]/g, '');    // CSI non-SGR
+  // Split on SGR sequences
+  var parts = text.split(/\x1b\[([0-9;]*)m/);
+  var html = '', fg = '', bg = '', bold = false;
+  for (var i = 0; i < parts.length; i++) {
+    if (i % 2 === 0) {
+      var t = escHtml(parts[i]);
+      if (!t) continue;
+      if (fg || bg || bold) {
+        var s = '';
+        if (fg) s += 'color:' + fg + ';';
+        if (bg) s += 'background:' + bg + ';';
+        if (bold) s += 'font-weight:700;';
+        html += '<span style="' + s + '">' + t + '</span>';
+      } else {
+        html += t;
+      }
+    } else {
+      var codes = parts[i] ? parts[i].split(';').map(Number) : [0];
+      for (var j = 0; j < codes.length; j++) {
+        var c = codes[j];
+        if (c === 0) { fg = ''; bg = ''; bold = false; }
+        else if (c === 1) bold = true;
+        else if (c === 22) bold = false;
+        else if (c >= 30 && c <= 37) fg = _ANSI16[c - 30 + (bold ? 8 : 0)];
+        else if (c >= 40 && c <= 47) bg = _ANSI16[c - 40];
+        else if (c >= 90 && c <= 97) fg = _ANSI16[c - 82];
+        else if (c >= 100 && c <= 107) bg = _ANSI16[c - 92];
+        else if (c === 39) fg = '';
+        else if (c === 49) bg = '';
+        else if (c === 38 && codes[j+1] === 5) { fg = _ansi256(codes[j+2]||0); j += 2; }
+        else if (c === 48 && codes[j+1] === 5) { bg = _ansi256(codes[j+2]||0); j += 2; }
+        else if (c === 38 && codes[j+1] === 2) { fg = 'rgb('+(codes[j+2]||0)+','+(codes[j+3]||0)+','+(codes[j+4]||0)+')'; j += 4; }
+        else if (c === 48 && codes[j+1] === 2) { bg = 'rgb('+(codes[j+2]||0)+','+(codes[j+3]||0)+','+(codes[j+4]||0)+')'; j += 4; }
+      }
+    }
+  }
+  return html;
+}
+
+// ── Mobile WebSocket terminal stream ────────────────────────────────────────
+var _termWs = null;
+
+function _connectTermWs(target) {
+  _disconnectTermWs();
+  var proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  var url = proto + '//' + location.host + '/ws/terminal/' + encodeURIComponent(target)
+            + '/stream?token=' + encodeURIComponent(_adminToken);
+  _termWs = new WebSocket(url);
+  var output = document.getElementById('mobile-term-output');
+
+  _termWs.onmessage = function(e) {
+    if (!output) return;
+    var wasAtBottom = (output.scrollHeight - output.scrollTop - output.clientHeight) < 40;
+    output.innerHTML = _ansiToHtml(e.data);
+    if (wasAtBottom) output.scrollTop = output.scrollHeight;
+    // Update state dot from WebSocket data
+    if (_currentTarget) _onStateChange(_currentTarget, _detectState(_stripAnsi(e.data)));
+  };
+
+  _termWs.onclose = function() {
+    _termWs = null;
+    // Auto-reconnect if still viewing this pane
+    if (_currentTarget === target && _isMobile &&
+        document.getElementById('dev-page').classList.contains('detail-open')) {
+      setTimeout(function() { _connectTermWs(target); }, 2000);
+    }
+  };
+  _termWs.onerror = function() {};
+}
+
+function _disconnectTermWs() {
+  if (_termWs) {
+    _termWs.onclose = null;  // prevent auto-reconnect
+    try { _termWs.close(); } catch(e) {}
+    _termWs = null;
+  }
+}
 
 async function _sendToTerminal(keys) {
   if (!_currentTarget) return;
@@ -914,17 +1016,25 @@ function _initMobileInput() {
   document.getElementById('mobile-keys-row').addEventListener('click', function(e) {
     var btn = e.target.closest('.mobile-key-btn');
     if (!btn) return;
-    // Scroll buttons
+    // Scroll buttons — on mobile, scroll the text output natively
     var scrollDir = btn.dataset.scroll;
     if (scrollDir) {
-      _scrollTerminal(scrollDir);
+      if (_isMobile) {
+        var output = document.getElementById('mobile-term-output');
+        if (output) {
+          var h = output.clientHeight * 0.8;
+          output.scrollBy({ top: scrollDir.includes('up') ? -h : h, behavior: 'smooth' });
+        }
+      } else {
+        _scrollTerminal(scrollDir);
+      }
       return;
     }
     // Regular special keys
     var keyName = btn.dataset.key;
     var seq = _SPECIAL_KEYS[keyName];
     if (seq) {
-      if (_inScrollMode) _scrollTerminal('exit');
+      if (!_isMobile && _inScrollMode) _scrollTerminal('exit');
       _sendToTerminal(seq);
     }
   });
@@ -1029,6 +1139,8 @@ init();
       <div class="term-scroll-badge" id="term-scroll-badge">滚动模式</div>
       <iframe id="ttyd-frame" allow="clipboard-read; clipboard-write"></iframe>
     </div>
+    <!-- Mobile: independent terminal output via WebSocket (ANSI-rendered) -->
+    <div class="mobile-term-output" id="mobile-term-output"></div>
     <!-- Mobile input bar: bypasses iframe input issues via tmux send-keys -->
     <div class="mobile-input-bar" id="mobile-input-bar">
       <div class="mobile-keys-row" id="mobile-keys-row">

@@ -1151,6 +1151,34 @@ def terminals_output(request: Request, target: str, lines: int = 200):
     return {"target": target, "output": text}
 
 
+@api.websocket("/ws/terminal/{target:path}/stream")
+async def terminal_stream_ws(ws: WebSocket, target: str):
+    """Stream terminal output via WebSocket for mobile clients.
+
+    Uses capture-pane with ANSI codes every 200ms and only sends when
+    content changes. This gives <200ms latency real-time streaming without
+    sharing the ttyd PTY (so mobile and desktop are fully independent).
+    """
+    token_param = ws.query_params.get("token", "")
+    expected = _admin_token()
+    if expected and token_param != expected:
+        await ws.close(code=1008, reason="Unauthorized")
+        return
+    await ws.accept()
+    from vibe.tmux_bridge import capture_pane
+    prev_hash = ""
+    try:
+        while True:
+            text = await asyncio.to_thread(capture_pane, target, 300, ansi=True)
+            h = hashlib.md5(text.encode()).hexdigest()
+            if h != prev_hash:
+                prev_hash = h
+                await ws.send_text(text)
+            await asyncio.sleep(0.2)
+    except (WebSocketDisconnect, Exception):
+        pass
+
+
 _UPLOAD_DIR = Path("/tmp/mira-uploads")
 
 @api.post("/api/upload/image")

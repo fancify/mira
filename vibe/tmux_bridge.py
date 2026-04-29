@@ -54,17 +54,27 @@ def list_panes() -> list[dict]:
     return panes
 
 
-def capture_pane(target: str, lines: int = 200) -> str:
-    """Return recent output from a tmux pane."""
-    proc = subprocess.run(
-        [_TMUX_BIN, "capture-pane", "-t", target, "-p", "-J"],
-        capture_output=True, text=True, env=_TMUX_ENV,
-    )
+def capture_pane(target: str, lines: int = 200, ansi: bool = False) -> str:
+    """Return recent output from a tmux pane.
+
+    Args:
+        target: tmux pane target (e.g. "mira:0.0")
+        lines:  how many scrollback lines to capture (0 = visible only)
+        ansi:   if True, preserve ANSI escape sequences (-e flag)
+    """
+    cmd = [_TMUX_BIN, "capture-pane", "-t", target, "-p", "-J"]
+    if ansi:
+        cmd.append("-e")
+    if lines > 0:
+        cmd.extend(["-S", str(-lines)])
+    proc = subprocess.run(cmd, capture_output=True, text=True, env=_TMUX_ENV)
     if proc.returncode != 0:
         raise RuntimeError(f"capture-pane failed for target '{target}': {proc.stderr.strip()}")
     text = proc.stdout
-    tail = text.splitlines()[-lines:]
-    return "\n".join(tail)
+    if not ansi and lines > 0:
+        tail = text.splitlines()[-lines:]
+        return "\n".join(tail)
+    return text
 
 
 def send_keys(target: str, keys: str) -> None:
