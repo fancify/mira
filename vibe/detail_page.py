@@ -201,11 +201,11 @@ def render_detail_page(project_id: str, project_name: str, inline_data: str = "n
   /* edit modal */
   .edit-btn {{
     display: inline-flex; align-items: center; gap: 4px; cursor: pointer;
-    font-size: 11px; color: var(--muted); opacity: 0.4; transition: opacity .15s;
-    background: none; border: 1px solid transparent; border-radius: 4px;
+    font-size: 11px; color: var(--sub); transition: all .15s;
+    background: none; border: 1px solid var(--border); border-radius: 4px;
     padding: 3px 8px; font-family: var(--mono);
   }}
-  .edit-btn:hover {{ opacity: 0.9; border-color: var(--border); }}
+  .edit-btn:hover {{ color: var(--text); border-color: var(--accent); }}
   .modal-overlay {{
     position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 1000;
     display: flex; align-items: center; justify-content: center;
