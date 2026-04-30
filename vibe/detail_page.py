@@ -72,12 +72,6 @@ def render_detail_page(project_id: str, project_name: str, inline_data: str = "n
   }}
   .term-qbtn:hover {{ border-color: var(--accent); color: var(--accent); }}
 
-  /* ── overview iframe ── */
-  .overview-frame {{
-    width: 100%; border: none; min-height: calc(100vh - 92px);
-    background: var(--bg);
-  }}
-
   /* ── design docs ── */
   .docs-layout {{ display: grid; grid-template-columns: 220px 1fr; min-height: calc(100vh - 92px); }}
   .docs-sidebar {{
@@ -178,8 +172,8 @@ def render_detail_page(project_id: str, project_name: str, inline_data: str = "n
     border-radius: var(--radius); padding: 10px 12px; box-shadow: var(--card-shadow);
     min-width: 0; overflow: hidden;
   }}
-  .stats-val {{ font-size: 20px; font-weight: 700; color: var(--text); margin-bottom: 2px; font-variant-numeric: tabular-nums; }}
-  .stats-lbl {{ font-size: 9px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }}
+  .stats-val {{ font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 2px; font-variant-numeric: tabular-nums; }}
+  .stats-lbl {{ font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }}
   .summary-grid {{
     display: grid; grid-template-columns: 1fr 1fr;
     gap: 12px; margin-bottom: 12px;
@@ -193,7 +187,7 @@ def render_detail_page(project_id: str, project_name: str, inline_data: str = "n
     background: rgba(var(--accent-rgb, 79,70,229),.04); border-color: rgba(var(--accent-rgb, 79,70,229),.15);
   }}
   .card-section-title {{
-    font-size: 9px; font-weight: 700; letter-spacing: 2px;
+    font-size: 10px; font-weight: 700; letter-spacing: 2px;
     text-transform: uppercase; color: var(--muted); margin-bottom: 10px;
   }}
   .commit-list {{ display: flex; flex-direction: column; gap: 4px; margin-top: 10px; overflow: hidden; }}
@@ -204,6 +198,33 @@ def render_detail_page(project_id: str, project_name: str, inline_data: str = "n
     background: rgba(255,255,255,.025); border: 1px solid var(--border);
     border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--card-shadow);
   }}
+  /* inline edit */
+  .edit-icon {{
+    display: inline-flex; align-items: center; cursor: pointer; opacity: 0.3;
+    margin-left: 6px; font-size: 12px; transition: opacity .15s; vertical-align: middle;
+  }}
+  .edit-icon:hover {{ opacity: 0.8; }}
+  .inline-input {{
+    background: transparent; border: 1px solid var(--border); border-radius: 4px;
+    color: var(--text); font-family: var(--mono); padding: 4px 8px; width: 100%;
+  }}
+  .inline-input:focus {{ outline: none; border-color: var(--accent); }}
+  .inline-input.title-input {{ font-size: 22px; font-weight: 700; }}
+  .inline-input.desc-input {{ font-size: 12px; resize: vertical; min-height: 28px; }}
+  .proj-desc {{ font-size: 12px; color: var(--sub); margin-bottom: 8px; line-height: 1.5; }}
+  /* arch section */
+  .arch-card {{
+    background: rgba(255,255,255,.025); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px 16px; margin-top: 16px;
+    box-shadow: var(--card-shadow);
+  }}
+  .arch-card p {{ font-size: 12px; color: var(--sub); line-height: 1.6; margin-bottom: 8px; }}
+  .arch-card p:last-child {{ margin-bottom: 0; }}
+  .arch-card h1,.arch-card h2,.arch-card h3 {{ font-size: 13px; font-weight: 700; color: var(--text); margin: 12px 0 6px; }}
+  .arch-card h1:first-child,.arch-card h2:first-child,.arch-card h3:first-child {{ margin-top: 0; }}
+  .arch-card ul,.arch-card ol {{ font-size: 12px; color: var(--sub); padding-left: 18px; margin-bottom: 8px; }}
+  .arch-card li {{ margin-bottom: 3px; }}
+  .arch-card code {{ font-size: 11px; background: rgba(255,255,255,.06); padding: 1px 4px; border-radius: 3px; }}
   /* hero */
   .summary-wrap {{ padding: 20px; max-width: 960px; }}
   .hero-row {{ display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; }}
@@ -229,7 +250,7 @@ def render_detail_page(project_id: str, project_name: str, inline_data: str = "n
   .card-stat-val.gold      {{ color: var(--gold); }}
   .card-stat-val.dirty-ok  {{ color: var(--green); }}
   .card-stat-val.dirty-warn {{ color: var(--orange); }}
-  .card-stat-lbl {{ font-size: 9px; color: var(--muted); margin-top: 2px; }}
+  .card-stat-lbl {{ font-size: 10px; color: var(--muted); margin-top: 2px; }}
   /* todos */
   .todo-list {{ margin-top: 10px; display: flex; flex-direction: column; gap: 4px; }}
   .todo-item {{ display: flex; align-items: flex-start; gap: 5px; font-size: 10px; }}
@@ -365,8 +386,7 @@ def render_detail_page(project_id: str, project_name: str, inline_data: str = "n
   <span class="subnav-proj" id="proj-name">{project_name}</span>
   <div class="subnav-spacer"></div>
   <div class="subnav-tabs">
-    <button class="tab-btn" id="tab-summary" onclick="showTab('summary')">概览</button>
-    <button class="tab-btn active" id="tab-overview" onclick="showTab('overview')">系统架构</button>
+    <button class="tab-btn active" id="tab-summary" onclick="showTab('summary')">概览</button>
     <button class="tab-btn" id="tab-design" onclick="showTab('design')">设计文档</button>
     <button class="tab-btn" id="tab-prompts" onclick="showTab('prompts')">Prompts</button>
     <a class="tab-btn" href="/dev?project={project_id}">Dev ↗</a>
@@ -375,10 +395,7 @@ def render_detail_page(project_id: str, project_name: str, inline_data: str = "n
 </div>
 
 <div class="content">
-  <div class="tab-panel" id="panel-summary">
-    <div class="loading"><div class="spinner"></div>加载中...</div>
-  </div>
-  <div class="tab-panel active" id="panel-overview">
+  <div class="tab-panel active" id="panel-summary">
     <div class="loading"><div class="spinner"></div>加载中...</div>
   </div>
   <div class="tab-panel" id="panel-design">
@@ -395,9 +412,8 @@ let projectData = null;
 if (location.hash === '#terminals') {{
   location.replace('/dev?project=' + encodeURIComponent({repr(project_id)}));
 }}
-let activeTab = 'overview';
+let activeTab = 'summary';
 let summaryLoaded = false;
-let overviewLoaded = false;
 let designLoaded = false;
 let promptsLoaded = false;
 
@@ -410,7 +426,6 @@ function showTab(name) {{
   const panelEl = document.getElementById('panel-' + name);
   if (panelEl) panelEl.classList.add('active');
   if (name === 'summary'  && !summaryLoaded)  renderSummary();
-  if (name === 'overview' && !overviewLoaded) loadOverview();
   if (name === 'design'   && !designLoaded)   renderDesign();
   if (name === 'prompts'  && !promptsLoaded) {{
     if (!_isAdmin) {{ openLoginModal(() => {{ promptsLoaded = false; renderPrompts(); }}); return; }}
@@ -546,24 +561,6 @@ function simpleMarkdown(md) {{
   return t;
 }}
 
-// ── Overview ──────────────────────────────────────────────────────────────────
-async function loadOverview() {{
-  const el = document.getElementById('panel-overview');
-  try {{
-    const res = await fetch(`/projects/${{PROJECT_ID}}/overview?embed=1`);
-    const html = await res.text();
-    // Inject the overview page content into an iframe
-    const iframe = document.createElement('iframe');
-    iframe.className = 'overview-frame';
-    iframe.srcdoc = html;
-    el.innerHTML = '';
-    el.appendChild(iframe);
-    overviewLoaded = true;
-  }} catch(e) {{
-    el.innerHTML = `<div class="empty-state"><div class="empty-icon">🌐</div><div>加载失败: ${{e.message}}</div></div>`;
-  }}
-}}
-
 // ── Summary Tab: stats bar + 2-col grid ──────────────────────────────────────
   function renderSummary() {{
     const el = document.getElementById('panel-summary');
@@ -610,9 +607,13 @@ async function loadOverview() {{
     let html = `<div class="summary-wrap">`;
 
     // Hero row
+    const editNameIcon = _isAdmin ? `<span class="edit-icon" onclick="startEditName()" title="编辑名称">✏️</span>` : '';
+    const editDescIcon = _isAdmin ? `<span class="edit-icon" onclick="startEditDesc()" title="编辑简介">✏️</span>` : '';
+    const descText = p.description ? escHtml(p.description) : '<span style="opacity:0.3">暂无简介</span>';
     html += `<div class="hero-row">
       <div>
-        <div class="proj-title">${{escHtml(p.name || '')}}</div>
+        <div class="proj-title" id="proj-title-wrap"><span id="proj-title-text">${{escHtml(p.name || '')}}</span>${{editNameIcon}}</div>
+        <div class="proj-desc" id="proj-desc-wrap"><span id="proj-desc-text">${{descText}}</span>${{editDescIcon}}</div>
         <div class="proj-path">${{escHtml(p.path || '')}}</div>
         <div class="badge-row">${{svcBadge}}${{domainBadge}}${{deployBadge}}${{statusBadge}}</div>
       </div>
@@ -729,10 +730,85 @@ async function loadOverview() {{
       }}
     }}
 
+    // ── Architecture summary ──
+    if (p.arch_summary) {{
+      html += `<div class="arch-card">
+        <div class="card-section-title">架构概述</div>
+        ${{simpleMarkdown(p.arch_summary)}}
+      </div>`;
+    }}
+
     html += `</div>`;  // end outer padding div
     el.innerHTML = html;
     summaryLoaded = true;
   }}
+
+// ── Inline edit helpers ──────────────────────────────────────────────────────
+function startEditName() {{
+  const wrap = document.getElementById('proj-title-wrap');
+  const cur = (projectData && projectData.name) || '';
+  wrap.innerHTML = `<input class="inline-input title-input" id="edit-name-input" value="${{escHtml(cur)}}" />`;
+  const inp = document.getElementById('edit-name-input');
+  inp.focus();
+  inp.select();
+  inp.addEventListener('blur', () => saveEditName(inp.value));
+  inp.addEventListener('keydown', e => {{ if (e.key==='Enter') inp.blur(); if (e.key==='Escape') {{ inp.value = cur; inp.blur(); }} }});
+}}
+async function saveEditName(val) {{
+  val = val.trim();
+  const old = (projectData && projectData.name) || '';
+  if (!val || val === old) {{
+    // revert
+    const wrap = document.getElementById('proj-title-wrap');
+    const editIcon = _isAdmin ? `<span class="edit-icon" onclick="startEditName()" title="编辑名称">✏️</span>` : '';
+    wrap.innerHTML = `<span id="proj-title-text">${{escHtml(old)}}</span>${{editIcon}}`;
+    return;
+  }}
+  try {{
+    await fetch(`/api/projects/${{PROJECT_ID}}/name`, {{
+      method: 'POST', headers: {{'Content-Type':'application/json', ..._authHeaders()}},
+      body: JSON.stringify({{name: val}})
+    }});
+    projectData.name = val;
+    document.getElementById('proj-name').textContent = val;
+  }} catch(e) {{ /* ignore */ }}
+  const wrap = document.getElementById('proj-title-wrap');
+  const editIcon = _isAdmin ? `<span class="edit-icon" onclick="startEditName()" title="编辑名称">✏️</span>` : '';
+  wrap.innerHTML = `<span id="proj-title-text">${{escHtml(projectData.name)}}</span>${{editIcon}}`;
+}}
+
+function startEditDesc() {{
+  const wrap = document.getElementById('proj-desc-wrap');
+  const cur = (projectData && projectData.description) || '';
+  wrap.innerHTML = `<textarea class="inline-input desc-input" id="edit-desc-input" rows="2">${{escHtml(cur)}}</textarea>`;
+  const inp = document.getElementById('edit-desc-input');
+  inp.focus();
+  inp.addEventListener('blur', () => saveEditDesc(inp.value));
+  inp.addEventListener('keydown', e => {{ if (e.key==='Enter' && !e.shiftKey) {{ e.preventDefault(); inp.blur(); }} if (e.key==='Escape') {{ inp.value = cur; inp.blur(); }} }});
+}}
+async function saveEditDesc(val) {{
+  val = val.trim();
+  const old = (projectData && projectData.description) || '';
+  if (val === old) {{
+    // revert
+    const wrap = document.getElementById('proj-desc-wrap');
+    const editIcon = _isAdmin ? `<span class="edit-icon" onclick="startEditDesc()" title="编辑简介">✏️</span>` : '';
+    const descText = old ? escHtml(old) : '<span style="opacity:0.3">暂无简介</span>';
+    wrap.innerHTML = `<span id="proj-desc-text">${{descText}}</span>${{editIcon}}`;
+    return;
+  }}
+  try {{
+    await fetch(`/api/projects/${{PROJECT_ID}}/description`, {{
+      method: 'POST', headers: {{'Content-Type':'application/json', ..._authHeaders()}},
+      body: JSON.stringify({{description: val}})
+    }});
+    projectData.description = val;
+  }} catch(e) {{ /* ignore */ }}
+  const wrap = document.getElementById('proj-desc-wrap');
+  const editIcon = _isAdmin ? `<span class="edit-icon" onclick="startEditDesc()" title="编辑简介">✏️</span>` : '';
+  const descText = projectData.description ? escHtml(projectData.description) : '<span style="opacity:0.3">暂无简介</span>';
+  wrap.innerHTML = `<span id="proj-desc-text">${{descText}}</span>${{editIcon}}`;
+}}
 
 // ── Design Docs ───────────────────────────────────────────────────────────────
 async function renderDesign() {{
@@ -1109,9 +1185,8 @@ function updatePrompts() {{ window._updatePrompts && window._updatePrompts(); }}
 
 
 async function reload() {{
-  summaryLoaded = false; overviewLoaded = false; designLoaded = false; promptsLoaded = false;
+  summaryLoaded = false; designLoaded = false; promptsLoaded = false;
   document.getElementById('panel-summary').innerHTML  = '<div class="loading"><div class="spinner"></div>加载中...</div>';
-  document.getElementById('panel-overview').innerHTML = '<div class="loading"><div class="spinner"></div>加载中...</div>';
   document.getElementById('panel-design').innerHTML   = '<div class="loading"><div class="spinner"></div>加载中...</div>';
   document.getElementById('panel-prompts').innerHTML  = '';
   await init();

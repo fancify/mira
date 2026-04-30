@@ -1108,6 +1108,38 @@ def update_project_name(project_id: str, request: Request, body: dict):
     return {"ok": True, "name": new_name}
 
 
+@api.post("/api/projects/{project_id}/description")
+def update_project_description(project_id: str, request: Request, body: dict):
+    """Update project description — writes `description:` into project's vibe.yaml."""
+    if not _is_admin(request):
+        raise HTTPException(status_code=401, detail="需要管理员权限")
+    new_desc = (body.get("description") or "").strip()
+    projects = get_all_projects()
+    proj = next((p for p in projects if p.get("id") == project_id), None)
+    if not proj:
+        raise HTTPException(status_code=404, detail="project not found")
+    import yaml
+    yaml_path = Path(proj["path"]) / "vibe.yaml"
+    cfg = {}
+    if yaml_path.exists():
+        try:
+            with open(yaml_path) as f:
+                cfg = yaml.safe_load(f) or {}
+        except Exception:
+            cfg = {}
+    cfg["description"] = new_desc
+    with open(yaml_path, "w") as f:
+        yaml.safe_dump(cfg, f, allow_unicode=True, sort_keys=False)
+    with _cache_lock:
+        if _cache:
+            for cp in _cache:
+                if cp.get("id") == project_id:
+                    cp["description"] = new_desc
+                    break
+    threading.Thread(target=_rebuild_and_persist, daemon=True).start()
+    return {"ok": True, "description": new_desc}
+
+
 @api.get("/api/terminals/alerts")
 def terminals_alerts(request: Request):
     if not _is_admin(request):
