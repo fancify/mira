@@ -386,22 +386,34 @@ def render_detail_page(project_id: str, project_name: str, inline_data: str = "n
     .tab-btn {{ padding: 0 10px; white-space: nowrap; flex-shrink: 0; }}
 
     /* summary */
-    .summary-wrap {{ padding: 14px; overflow-x: hidden; }}
+    .summary-wrap {{ padding: 14px; padding-bottom: 80px; overflow-x: hidden; }}
     .stats-bar {{ grid-template-columns: repeat(3, 1fr); }}
     .summary-grid {{ grid-template-columns: 1fr; }}
     .proj-title {{ font-size: 18px; word-break: break-all; }}
     .proj-path {{ word-break: break-all; }}
     .hero-row {{ flex-wrap: wrap; gap: 8px; }}
-    .commit-row {{ min-width: 0; }}
-    .commit-msg {{ min-width: 0; }}
+    .commit-row {{ min-width: 0; flex-wrap: wrap; }}
+    .commit-msg {{ min-width: 0; white-space: normal; word-break: break-word; }}
     .card-stats {{ gap: 10px; }}
     .cl-summary {{ flex-wrap: wrap; }}
     .cl-tok-grid {{ flex-wrap: wrap; }}
     .cl-bottom {{ flex-direction: column; }}
+    .badge-row {{ word-break: break-word; }}
+    .badge {{ white-space: normal; word-break: break-word; }}
+    .dep-flow {{ word-break: break-word; }}
+    .dep-node {{ word-break: break-word; white-space: normal; }}
+    .arch-card code {{ word-break: break-all; }}
+    .todo-text {{ word-break: break-word; }}
+    .feat-item {{ word-break: break-word; }}
+    .tech-row {{ flex-wrap: wrap; }}
+    .lang-name {{ width: auto; min-width: 50px; }}
+    .arch-card a {{ word-break: break-all; }}
+    .arch-card {{ overflow-wrap: break-word; word-break: break-word; }}
+    .summary-card {{ overflow-wrap: break-word; word-break: break-word; }}
 
     /* plans / prompts */
-    .plans-wrap {{ padding: 20px 16px; }}
-    .prompts-wrap {{ padding: 16px; }}
+    .plans-wrap {{ padding: 20px 16px; padding-bottom: 80px; }}
+    .prompts-wrap {{ padding: 16px; padding-bottom: 80px; }}
 
     /* design docs — hide desktop sidebar, collapse layout */
     .docs-layout {{ display: block; }}
