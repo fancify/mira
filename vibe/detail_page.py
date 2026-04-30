@@ -198,19 +198,38 @@ def render_detail_page(project_id: str, project_name: str, inline_data: str = "n
     background: rgba(255,255,255,.025); border: 1px solid var(--border);
     border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--card-shadow);
   }}
-  /* inline edit */
-  .edit-icon {{
-    display: inline-flex; align-items: center; cursor: pointer; opacity: 0.3;
-    margin-left: 6px; font-size: 12px; transition: opacity .15s; vertical-align: middle;
+  /* edit modal */
+  .edit-btn {{
+    display: inline-flex; align-items: center; gap: 4px; cursor: pointer;
+    font-size: 11px; color: var(--muted); opacity: 0.4; transition: opacity .15s;
+    background: none; border: 1px solid transparent; border-radius: 4px;
+    padding: 3px 8px; font-family: var(--mono);
   }}
-  .edit-icon:hover {{ opacity: 0.8; }}
-  .inline-input {{
-    background: transparent; border: 1px solid var(--border); border-radius: 4px;
-    color: var(--text); font-family: var(--mono); padding: 4px 8px; width: 100%;
+  .edit-btn:hover {{ opacity: 0.9; border-color: var(--border); }}
+  .modal-overlay {{
+    position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 1000;
+    display: flex; align-items: center; justify-content: center;
   }}
-  .inline-input:focus {{ outline: none; border-color: var(--accent); }}
-  .inline-input.title-input {{ font-size: 22px; font-weight: 700; }}
-  .inline-input.desc-input {{ font-size: 12px; resize: vertical; min-height: 28px; }}
+  .modal-box {{
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+    padding: 20px 24px; width: 420px; max-width: 90vw; box-shadow: 0 8px 30px rgba(0,0,0,.4);
+  }}
+  .modal-title {{ font-size: 14px; font-weight: 700; margin-bottom: 14px; }}
+  .modal-label {{ font-size: 11px; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 1px; }}
+  .modal-input {{
+    width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 4px;
+    color: var(--text); font-family: var(--mono); padding: 6px 10px; font-size: 13px;
+    margin-bottom: 12px;
+  }}
+  .modal-input:focus {{ outline: none; border-color: var(--accent); }}
+  .modal-textarea {{ resize: vertical; min-height: 50px; }}
+  .modal-actions {{ display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }}
+  .modal-actions button {{
+    font-size: 12px; font-family: var(--mono); padding: 5px 16px; border-radius: 4px;
+    cursor: pointer; border: 1px solid var(--border); background: var(--bg); color: var(--text);
+  }}
+  .modal-actions button.primary {{ background: var(--accent); color: #fff; border-color: var(--accent); }}
+  .modal-actions button:hover {{ opacity: 0.85; }}
   .proj-desc {{ font-size: 12px; color: var(--sub); margin-bottom: 8px; line-height: 1.5; }}
   /* arch section */
   .arch-card {{
@@ -225,13 +244,32 @@ def render_detail_page(project_id: str, project_name: str, inline_data: str = "n
   .arch-card ul,.arch-card ol {{ font-size: 12px; color: var(--sub); padding-left: 18px; margin-bottom: 8px; }}
   .arch-card li {{ margin-bottom: 3px; }}
   .arch-card code {{ font-size: 11px; background: rgba(255,255,255,.06); padding: 1px 4px; border-radius: 3px; }}
+  /* ext deps */
+  .dep-flow {{ display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }}
+  .dep-node {{
+    font-size: 11px; padding: 5px 12px; border-radius: var(--radius);
+    border: 1px solid var(--border); background: rgba(255,255,255,.03);
+  }}
+  .dep-arrow {{ color: var(--muted); font-size: 12px; }}
+  /* code stats */
+  .lang-row {{ display: flex; align-items: center; gap: 8px; font-size: 11px; margin-bottom: 4px; }}
+  .lang-name {{ width: 80px; text-align: right; color: var(--sub); flex-shrink: 0; }}
+  .lang-track {{ flex: 1; height: 6px; background: rgba(255,255,255,.06); border-radius: 3px; overflow: hidden; }}
+  .lang-fill {{ height: 100%; border-radius: 3px; }}
+  .lang-num {{ width: 40px; color: var(--muted); flex-shrink: 0; }}
+  /* feature list */
+  .feat-item {{ font-size: 11px; padding: 3px 0; }}
+  .feat-item.done {{ color: var(--green); }}
+  .feat-item.planned {{ color: var(--sub); }}
   /* hero */
   .summary-wrap {{ padding: 20px; max-width: 960px; }}
   .hero-row {{ display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; }}
+  .hero-left {{ flex: 1; min-width: 0; }}
+  .hero-right {{ display: flex; align-items: center; gap: 10px; flex-shrink: 0; padding-top: 4px; }}
   .proj-title {{ font-size: 22px; font-weight: 700; margin-bottom: 5px; }}
   .proj-path {{ font-size: 11px; color: var(--muted); margin-bottom: 10px; }}
   .badge-row {{ display: flex; flex-wrap: wrap; gap: 6px; }}
-  .claude-last {{ font-size: 11px; color: var(--muted); flex-shrink: 0; padding-top: 4px; }}
+  .claude-last {{ font-size: 11px; color: var(--muted); white-space: nowrap; }}
   /* badges */
   .badge {{ font-size: 11px; padding: 4px 12px; border-radius: var(--radius-pill); border: 1px solid; display: inline-flex; align-items: center; gap: 5px; }}
   .badge-green   {{ border-color: rgba(92,208,138,.25);  background: rgba(92,208,138,.08);  color: var(--green); }}
@@ -607,19 +645,19 @@ function simpleMarkdown(md) {{
     let html = `<div class="summary-wrap">`;
 
     // Hero row
-    const editNameIcon = _isAdmin ? `<span class="edit-icon" onclick="startEditName()" title="编辑名称">✏️</span>` : '';
-    const editDescIcon = _isAdmin ? `<span class="edit-icon" onclick="startEditDesc()" title="编辑简介">✏️</span>` : '';
-    const descText = p.description ? escHtml(p.description) : '<span style="opacity:0.3">暂无简介</span>';
+    const descText = p.description || '';
+    const editBtn = _isAdmin ? `<button class="edit-btn" onclick="openEditModal()" title="编辑">✎ 编辑</button>` : '';
     html += `<div class="hero-row">
-      <div>
-        <div class="proj-title" id="proj-title-wrap"><span id="proj-title-text">${{escHtml(p.name || '')}}</span>${{editNameIcon}}</div>
-        <div class="proj-desc" id="proj-desc-wrap"><span id="proj-desc-text">${{descText}}</span>${{editDescIcon}}</div>
+      <div class="hero-left">
+        <div class="proj-title">${{escHtml(p.name || '')}}</div>
+        ${{descText ? `<div class="proj-desc">${{escHtml(descText)}}</div>` : ''}}
         <div class="proj-path">${{escHtml(p.path || '')}}</div>
         <div class="badge-row">${{svcBadge}}${{domainBadge}}${{deployBadge}}${{statusBadge}}</div>
       </div>
-      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
-        ${{caLastStr ? `<div class="claude-last">Claude ${{caLastStr}}</div>` : ''}}
-        ${{p.path ? `<a class="term-qbtn" href="/dev?project=${{encodeURIComponent(PROJECT_ID)}}" title="在 Dev 页面打开该项目的终端">⬛ 打开终端</a>` : ''}}
+      <div class="hero-right">
+        ${{editBtn}}
+        ${{p.path ? `<a class="term-qbtn" href="/dev?project=${{encodeURIComponent(PROJECT_ID)}}" title="在 Dev 页面打开该项目的终端">⬛ Dev</a>` : ''}}
+        ${{caLastStr ? `<span class="claude-last">${{caLastStr}}</span>` : ''}}
       </div>
     </div>`;
 
@@ -738,76 +776,129 @@ function simpleMarkdown(md) {{
       </div>`;
     }}
 
+    // ── External dependencies ──
+    const extDeps = p.external_deps || [];
+    if (extDeps.length) {{
+      let depHtml = `<div class="dep-flow"><div class="dep-node" style="border-color:var(--accent);color:var(--accent)">${{escHtml(p.name||'本项目')}}</div>`;
+      extDeps.forEach(d => {{
+        const meta = d.port ? ':'+d.port : (d.url||'');
+        depHtml += `<span class="dep-arrow">→</span><div class="dep-node">${{escHtml(d.name||'')}}${{meta ? ' <span style="color:var(--muted);font-size:10px">'+escHtml(meta)+'</span>' : ''}}</div>`;
+      }});
+      depHtml += `</div>`;
+      html += `<div class="arch-card">
+        <div class="card-section-title">服务依赖</div>
+        ${{depHtml}}
+      </div>`;
+    }}
+
+    // ── Deploy details ──
+    if (deploy.type && deploy.type !== 'none') {{
+      let dRows = '';
+      if (deploy.host) dRows += `<div style="font-size:11px;margin-bottom:3px"><span style="color:var(--muted)">Host:</span> <code>${{escHtml(deploy.host)}}</code></div>`;
+      if (deploy.url)  dRows += `<div style="font-size:11px;margin-bottom:3px"><span style="color:var(--muted)">URL:</span> <a href="${{escHtml(deploy.url)}}" target="_blank" style="color:var(--accent)">${{escHtml(deploy.url)}}</a></div>`;
+      if (deploy.remote_dir) dRows += `<div style="font-size:11px;margin-bottom:3px"><span style="color:var(--muted)">目录:</span> <code>${{escHtml(deploy.remote_dir)}}</code></div>`;
+      if (deploy.cmd)  dRows += `<div style="font-size:11px;margin-bottom:3px"><span style="color:var(--muted)">命令:</span> <code>${{escHtml(deploy.cmd)}}</code></div>`;
+      if (dRows) {{
+        html += `<div class="arch-card">
+          <div class="card-section-title">部署信息</div>
+          ${{dRows}}
+        </div>`;
+      }}
+    }}
+
+    // ── Code stats (languages) ──
+    const langs = (loc.languages || []).slice(0, 8);
+    if (langs.length) {{
+      const LANG_COLORS = ['#61afef','#c678dd','#e5c07b','#52c469','#e06c75','#56b6c2','#be5046','#98c379'];
+      const maxL = Math.max(...langs.map(l => l.code||0), 1);
+      let langHtml = langs.map((l,i) => {{
+        const lines = l.code||0;
+        const pct = Math.round(lines / maxL * 100);
+        const lbl = lines >= 1000 ? (lines/1000).toFixed(1)+'k' : String(lines);
+        return `<div class="lang-row">
+          <span class="lang-name">${{escHtml(l.name||'')}}</span>
+          <div class="lang-track"><div class="lang-fill" style="width:${{pct}}%;background:${{LANG_COLORS[i%8]}}"></div></div>
+          <span class="lang-num">${{lbl}}</span>
+        </div>`;
+      }}).join('');
+      const commentPct = loc.total_lines ? Math.round((loc.comment_lines||0) / loc.total_lines * 100) : 0;
+      html += `<div class="arch-card">
+        <div class="card-section-title">代码分布</div>
+        <div style="display:flex;gap:20px;margin-bottom:10px;font-size:11px;color:var(--muted)">
+          <span>文件 ${{loc.file_count||0}}</span>
+          <span>注释率 ${{commentPct}}%</span>
+        </div>
+        ${{langHtml}}
+      </div>`;
+    }}
+
+    // ── Features ──
+    const doneFeats = features.filter(f => f.implemented);
+    const plannedFeats = features.filter(f => !f.implemented);
+    if (doneFeats.length || plannedFeats.length) {{
+      let fHtml = doneFeats.map(f => `<div class="feat-item done">✓ ${{escHtml(f.text||'')}}</div>`).join('');
+      fHtml += plannedFeats.map(f => `<div class="feat-item planned">○ ${{escHtml(f.text||'')}}</div>`).join('');
+      html += `<div class="arch-card">
+        <div class="card-section-title">功能列表</div>
+        ${{fHtml}}
+      </div>`;
+    }}
+
     html += `</div>`;  // end outer padding div
     el.innerHTML = html;
     summaryLoaded = true;
   }}
 
-// ── Inline edit helpers ──────────────────────────────────────────────────────
-function startEditName() {{
-  const wrap = document.getElementById('proj-title-wrap');
-  const cur = (projectData && projectData.name) || '';
-  wrap.innerHTML = `<input class="inline-input title-input" id="edit-name-input" value="${{escHtml(cur)}}" />`;
-  const inp = document.getElementById('edit-name-input');
-  inp.focus();
-  inp.select();
-  inp.addEventListener('blur', () => saveEditName(inp.value));
-  inp.addEventListener('keydown', e => {{ if (e.key==='Enter') inp.blur(); if (e.key==='Escape') {{ inp.value = cur; inp.blur(); }} }});
+// ── Edit modal ───────────────────────────────────────────────────────────────
+function openEditModal() {{
+  const p = projectData || {{}};
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `<div class="modal-box">
+    <div class="modal-title">编辑项目信息</div>
+    <div class="modal-label">项目名称</div>
+    <input class="modal-input" id="edit-modal-name" value="${{escHtml(p.name||'')}}" />
+    <div class="modal-label">一句话简介</div>
+    <textarea class="modal-input modal-textarea" id="edit-modal-desc" rows="3">${{escHtml(p.description||'')}}</textarea>
+    <div class="modal-actions">
+      <button onclick="closeEditModal()">取消</button>
+      <button class="primary" onclick="saveEditModal()">保存</button>
+    </div>
+  </div>`;
+  overlay.addEventListener('click', e => {{ if (e.target === overlay) closeEditModal(); }});
+  document.body.appendChild(overlay);
+  document.getElementById('edit-modal-name').focus();
 }}
-async function saveEditName(val) {{
-  val = val.trim();
-  const old = (projectData && projectData.name) || '';
-  if (!val || val === old) {{
-    // revert
-    const wrap = document.getElementById('proj-title-wrap');
-    const editIcon = _isAdmin ? `<span class="edit-icon" onclick="startEditName()" title="编辑名称">✏️</span>` : '';
-    wrap.innerHTML = `<span id="proj-title-text">${{escHtml(old)}}</span>${{editIcon}}`;
-    return;
-  }}
-  try {{
-    await fetch(`/api/projects/${{PROJECT_ID}}/name`, {{
+function closeEditModal() {{
+  const m = document.querySelector('.modal-overlay');
+  if (m) m.remove();
+}}
+async function saveEditModal() {{
+  const nameVal = (document.getElementById('edit-modal-name').value || '').trim();
+  const descVal = (document.getElementById('edit-modal-desc').value || '').trim();
+  const p = projectData || {{}};
+  const promises = [];
+  if (nameVal && nameVal !== (p.name||'')) {{
+    promises.push(fetch(`/api/projects/${{PROJECT_ID}}/name`, {{
       method: 'POST', headers: {{'Content-Type':'application/json', ..._authHeaders()}},
-      body: JSON.stringify({{name: val}})
-    }});
-    projectData.name = val;
-    document.getElementById('proj-name').textContent = val;
-  }} catch(e) {{ /* ignore */ }}
-  const wrap = document.getElementById('proj-title-wrap');
-  const editIcon = _isAdmin ? `<span class="edit-icon" onclick="startEditName()" title="编辑名称">✏️</span>` : '';
-  wrap.innerHTML = `<span id="proj-title-text">${{escHtml(projectData.name)}}</span>${{editIcon}}`;
-}}
-
-function startEditDesc() {{
-  const wrap = document.getElementById('proj-desc-wrap');
-  const cur = (projectData && projectData.description) || '';
-  wrap.innerHTML = `<textarea class="inline-input desc-input" id="edit-desc-input" rows="2">${{escHtml(cur)}}</textarea>`;
-  const inp = document.getElementById('edit-desc-input');
-  inp.focus();
-  inp.addEventListener('blur', () => saveEditDesc(inp.value));
-  inp.addEventListener('keydown', e => {{ if (e.key==='Enter' && !e.shiftKey) {{ e.preventDefault(); inp.blur(); }} if (e.key==='Escape') {{ inp.value = cur; inp.blur(); }} }});
-}}
-async function saveEditDesc(val) {{
-  val = val.trim();
-  const old = (projectData && projectData.description) || '';
-  if (val === old) {{
-    // revert
-    const wrap = document.getElementById('proj-desc-wrap');
-    const editIcon = _isAdmin ? `<span class="edit-icon" onclick="startEditDesc()" title="编辑简介">✏️</span>` : '';
-    const descText = old ? escHtml(old) : '<span style="opacity:0.3">暂无简介</span>';
-    wrap.innerHTML = `<span id="proj-desc-text">${{descText}}</span>${{editIcon}}`;
-    return;
+      body: JSON.stringify({{name: nameVal}})
+    }}).then(() => {{
+      projectData.name = nameVal;
+      document.getElementById('proj-name').textContent = nameVal;
+    }}));
   }}
-  try {{
-    await fetch(`/api/projects/${{PROJECT_ID}}/description`, {{
+  if (descVal !== (p.description||'')) {{
+    promises.push(fetch(`/api/projects/${{PROJECT_ID}}/description`, {{
       method: 'POST', headers: {{'Content-Type':'application/json', ..._authHeaders()}},
-      body: JSON.stringify({{description: val}})
-    }});
-    projectData.description = val;
-  }} catch(e) {{ /* ignore */ }}
-  const wrap = document.getElementById('proj-desc-wrap');
-  const editIcon = _isAdmin ? `<span class="edit-icon" onclick="startEditDesc()" title="编辑简介">✏️</span>` : '';
-  const descText = projectData.description ? escHtml(projectData.description) : '<span style="opacity:0.3">暂无简介</span>';
-  wrap.innerHTML = `<span id="proj-desc-text">${{descText}}</span>${{editIcon}}`;
+      body: JSON.stringify({{description: descVal}})
+    }}).then(() => {{
+      projectData.description = descVal;
+    }}));
+  }}
+  await Promise.all(promises);
+  closeEditModal();
+  summaryLoaded = false;
+  renderSummary();
 }}
 
 // ── Design Docs ───────────────────────────────────────────────────────────────
