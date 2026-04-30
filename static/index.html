@@ -381,6 +381,11 @@ body {
   font-size: 13px;
   font-weight: 700;
   color: var(--text);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .status-badge {
   font-size: 10px;
@@ -396,7 +401,7 @@ body {
 .status-unknown { background: rgba(100,116,139,0.12); color: var(--text-muted); }
 .status-badge-clickable { cursor: pointer; user-select: none; }
 .status-badge-clickable:hover { filter: brightness(1.2); }
-.status-dropdown-wrap { position: relative; }
+.status-dropdown-wrap { position: relative; flex-shrink: 0; }
 .status-menu {
   display: none; position: absolute; top: calc(100% + 4px); left: 0; z-index: 300;
   background: var(--card-deep); border: 1px solid rgba(255,255,255,.12); border-radius: 6px;
@@ -1576,7 +1581,7 @@ body {
 .sm-todo-dot.completed   { background: var(--green); }
 .sm-todo-dot.in_progress { background: var(--yellow); }
 .sm-todo-dot.pending { background: var(--text-muted); }
-@media (max-width: 640px) { .sm-cols { grid-template-columns: 1fr; } .sm-kpi-row { flex-wrap: wrap; } #balance-row { grid-template-columns: 1fr !important; } }
+@media (max-width: 640px) { .sm-cols { grid-template-columns: 1fr; } .sm-kpi-row { flex-wrap: wrap; } }
 /* ── Chat Agent Panel ───────────────────────────── */
 .chat-fab {
   background: none; border: 1px solid var(--border); color: var(--text-muted);
@@ -3586,10 +3591,34 @@ async function loadBalance(force = false) {
     const actMasked = !!actPayload._masked;
 
     if (!providers.length) { row.style.display = 'none'; return; }
-    row.style.display = 'grid';
+    const isMobile = window.innerWidth <= 640;
+    if (isMobile) {
+      row.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px';
+    } else {
+      row.style.display = 'grid';
+    }
     row.innerHTML = providers.map(p =>
       renderBalanceCard(p, p.id === 'openrouter' ? {data: actData, masked: actMasked} : null)
     ).join('');
+    if (isMobile) {
+      row.querySelectorAll('.balance-card.collapsed').forEach(function(c) {
+        c.style.flex = '1 1 calc(50% - 4px)';
+        c.style.minWidth = '0';
+        c.style.padding = '10px 12px';
+        // Collapsed mobile: stack logo + balance vertically
+        var inner = c.querySelector('div');
+        if (inner) {
+          inner.style.cssText = 'display:flex;flex-direction:column;gap:4px';
+        }
+        // Hide dividers in collapsed mobile
+        c.querySelectorAll('.balance-divider').forEach(function(d) {
+          if (c.classList.contains('collapsed')) d.style.display = 'none';
+        });
+        // Hide toggle arrow in collapsed compact mode
+        var toggle = c.querySelector('.balance-card-toggle');
+        if (toggle) toggle.style.display = 'none';
+      });
+    }
   } catch(_) { row.style.display = 'none'; }
 }
 
