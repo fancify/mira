@@ -198,7 +198,7 @@ def collect_project(path: Path, name: str, vibe_cfg: Optional[dict]) -> ProjectI
     )
 
 
-def _collect_claude(project_path: str, aliases: list = []) -> Optional[ClaudeActivity]:
+def _collect_claude(project_path: str, aliases: list | None = None) -> Optional[ClaudeActivity]:
     data = collect_claude_activity(project_path, aliases=aliases)
     if not data:
         return None

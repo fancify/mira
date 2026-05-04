@@ -7,7 +7,7 @@ from typing import Optional
 
 CODEX_DIR = Path.home() / ".codex" / "sessions"
 
-# Per-project cache: project_path → (frozenset of (file, mtime), result dict)
+# Per-project cache: project_path → (frozenset of (file, mtime) pairs, result dict)
 _cache: dict[str, tuple[frozenset, dict]] = {}
 # Per-file cache: (file_path_str, mtime) → Optional[cwd]
 _file_cwd_cache: dict[tuple[str, float], Optional[str]] = {}
@@ -32,26 +32,24 @@ def _get_session_cwd(jsonl_path: Path) -> Optional[str]:
 
 
 def _session_touches_project(cwd: Optional[str], project_path: str) -> bool:
-    """cwd 精确匹配或是 project_path 子目录。"""
+    """cwd 精确匹配或是 project_path 子目录（大小写不敏感，适配 macOS）。"""
     if not cwd:
         return False
-    cwd_norm = cwd.rstrip("/") + "/"
-    proj_norm = project_path.rstrip("/") + "/"
+    cwd_norm = cwd.rstrip("/").lower() + "/"
+    proj_norm = project_path.rstrip("/").lower() + "/"
     return cwd_norm == proj_norm or cwd_norm.startswith(proj_norm)
 
 
 def _all_jsonl_files() -> list[Path]:
     if not CODEX_DIR.exists():
         return []
-    return sorted(CODEX_DIR.rglob("*.jsonl"))
+    return list(CODEX_DIR.rglob("*.jsonl"))
 
 
 def _parse_session(jsonl_path: Path) -> dict:
     """解析单个 Codex session，提取时间线和任务统计。"""
     timestamps: list[datetime] = []
     task_durations: list[float] = []  # ms
-    cli_version: Optional[str] = None
-    model_provider: Optional[str] = None
 
     try:
         with open(jsonl_path, encoding="utf-8", errors="replace") as f:
@@ -62,16 +60,9 @@ def _parse_session(jsonl_path: Path) -> dict:
                     if ts:
                         timestamps.append(datetime.fromisoformat(ts.replace("Z", "+00:00")))
 
-                    dtype = d.get("type")
-                    payload = d.get("payload") or {}
-
-                    if dtype == "session_meta":
-                        cli_version = payload.get("cli_version")
-                        model_provider = payload.get("model_provider")
-
-                    elif dtype == "event_msg":
-                        evt_type = payload.get("type", "")
-                        if evt_type == "task_complete":
+                    if d.get("type") == "event_msg":
+                        payload = d.get("payload") or {}
+                        if payload.get("type") == "task_complete":
                             dur = payload.get("duration_ms")
                             if isinstance(dur, (int, float)) and dur > 0:
                                 task_durations.append(dur)
@@ -81,12 +72,7 @@ def _parse_session(jsonl_path: Path) -> dict:
         pass
 
     timestamps.sort()
-    return {
-        "timestamps": timestamps,
-        "task_durations": task_durations,
-        "cli_version": cli_version,
-        "model_provider": model_provider,
-    }
+    return {"timestamps": timestamps, "task_durations": task_durations}
 
 
 def collect_codex_activity(project_path: str) -> dict:
@@ -96,14 +82,17 @@ def collect_codex_activity(project_path: str) -> dict:
     if not CODEX_DIR.exists():
         return {}
 
+    # 收集文件 mtime，避免重复 stat()
     all_files = _all_jsonl_files()
-    matching: list[Path] = []
-
+    file_mtimes: dict[Path, float] = {}
     for f in all_files:
         try:
-            mtime = f.stat().st_mtime
+            file_mtimes[f] = f.stat().st_mtime
         except OSError:
             continue
+
+    matching: list[Path] = []
+    for f, mtime in file_mtimes.items():
         key = (str(f), mtime)
         if key not in _file_cwd_cache:
             if len(_file_cwd_cache) > _FILE_CACHE_MAX:
@@ -113,10 +102,10 @@ def collect_codex_activity(project_path: str) -> dict:
         if _session_touches_project(cwd, project_path):
             matching.append(f)
 
-    matching.sort(key=lambda p: p.stat().st_mtime)
+    matching.sort(key=lambda p: file_mtimes[p])
 
     # 检查缓存
-    fingerprint = frozenset((str(f), f.stat().st_mtime) for f in matching)
+    fingerprint = frozenset((str(f), file_mtimes[f]) for f in matching)
     if project_path in _cache:
         cached_fp, cached_result = _cache[project_path]
         if cached_fp == fingerprint:
@@ -137,7 +126,7 @@ def collect_codex_activity(project_path: str) -> dict:
     GAP_THRESHOLD = 30 * 60  # 30min
 
     for f in matching:
-        mtime = datetime.fromtimestamp(f.stat().st_mtime)
+        mtime = datetime.fromtimestamp(file_mtimes[f])
         if mtime > cutoff_30d:
             count_30d += 1
         if mtime > cutoff_7d:
@@ -162,7 +151,6 @@ def collect_codex_activity(project_path: str) -> dict:
         for i in range(15)
     ]
 
-    # 任务统计
     total_tasks = len(all_task_durations)
     avg_task_ms = sum(all_task_durations) / total_tasks if total_tasks else 0
 
