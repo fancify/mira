@@ -51,18 +51,24 @@ class RemoteHost:
             h["X-Admin-Token"] = self.token
         return h
 
+    def _client(self, timeout: float = _TIMEOUT) -> httpx.AsyncClient:
+        """复用连接的 HTTP ��户端（上下文管理器）。"""
+        return httpx.AsyncClient(
+            base_url=self.url, trust_env=False, proxy=None,
+            timeout=timeout, headers=self._headers(),
+        )
+
     async def _get(self, path: str, params: Optional[dict] = None) -> Optional[dict | list]:
         try:
-            async with httpx.AsyncClient(trust_env=False, proxy=None) as client:
-                resp = await client.get(
-                    f"{self.url}{path}",
-                    headers=self._headers(),
-                    params=params,
-                    timeout=_TIMEOUT,
-                )
+            async with self._client() as client:
+                resp = await client.get(path, params=params)
                 resp.raise_for_status()
                 self.online = True
                 return resp.json()
+        except httpx.TimeoutException:
+            log.warning("远程主机 %s 请求超时 %s", self.alias, path)
+            self.online = False
+            return None
         except Exception as e:
             log.debug("远程主机 %s 请求失败 %s: %s", self.alias, path, e)
             self.online = False
@@ -72,18 +78,20 @@ class RemoteHost:
                     content: Optional[bytes] = None,
                     headers: Optional[dict] = None) -> Optional[dict]:
         try:
-            h = {**self._headers(), **(headers or {})}
-            async with httpx.AsyncClient(trust_env=False, proxy=None) as client:
+            async with self._client() as client:
                 resp = await client.post(
-                    f"{self.url}{path}",
-                    headers=h,
+                    path,
+                    headers=headers,
                     json=json_body if content is None else None,
                     content=content,
-                    timeout=_TIMEOUT,
                 )
                 resp.raise_for_status()
                 self.online = True
                 return resp.json()
+        except httpx.TimeoutException:
+            log.warning("远程主机 %s POST 超时 %s", self.alias, path)
+            self.online = False
+            return None
         except Exception as e:
             log.debug("远程主机 %s POST 失败 %s: %s", self.alias, path, e)
             self.online = False
@@ -117,14 +125,10 @@ class RemoteHost:
         return await self._post(f"/api/terminals/{target}/send", json_body={"keys": keys})
 
     async def proxy_kill_pane(self, target: str) -> Optional[dict]:
-        """DELETE /api/dev/panes/{target} — 通过 POST 模拟（httpx 方便起见）。"""
+        """DELETE /api/dev/panes/{target}"""
         try:
-            async with httpx.AsyncClient(trust_env=False, proxy=None) as client:
-                resp = await client.delete(
-                    f"{self.url}/api/dev/panes/{target}",
-                    headers=self._headers(),
-                    timeout=_TIMEOUT,
-                )
+            async with self._client() as client:
+                resp = await client.delete(f"/api/dev/panes/{target}")
                 resp.raise_for_status()
                 return resp.json()
         except Exception as e:
@@ -134,12 +138,10 @@ class RemoteHost:
     async def proxy_upload(self, file_bytes: bytes, filename: str, content_type: str) -> Optional[dict]:
         """POST /api/upload/image — 转发文件上传到远程主机。"""
         try:
-            async with httpx.AsyncClient(trust_env=False, proxy=None) as client:
+            async with self._client(timeout=30.0) as client:
                 resp = await client.post(
-                    f"{self.url}/api/upload/image",
-                    headers=self._headers(),
+                    "/api/upload/image",
                     files={"file": (filename, file_bytes, content_type)},
-                    timeout=30.0,  # 上传可能较慢
                 )
                 resp.raise_for_status()
                 return resp.json()

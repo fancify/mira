@@ -1,13 +1,29 @@
+import logging
+import stat
 from pathlib import Path
 from typing import Optional
 import yaml
 
 _DEFAULT_EXCLUDE = ["node_modules", ".venv", "__pycache__"]
+_log = logging.getLogger(__name__)
+
+
+def _check_file_permissions(path: Path) -> None:
+    """配置文件含敏感信息时，警告权限过于开放。"""
+    if not path.exists():
+        return
+    try:
+        mode = path.stat().st_mode
+        if mode & stat.S_IROTH:  # 其他用户可读
+            _log.warning("%s 权限过于开放（其他用户可读），建议 chmod 600 %s", path, path)
+    except OSError:
+        pass
 
 
 def _read_yaml(path: Path) -> dict:
     if not path.exists():
         return {}
+    _check_file_permissions(path)
     try:
         with open(path) as f:
             return yaml.safe_load(f) or {}

@@ -35,12 +35,16 @@ def _e(s) -> str:
 
 _FLOW_COLORS = ['blue', 'gold', 'green', 'purple', 'red', 'blue', 'gold', 'green']
 
+_RE_CODE = re.compile(r'`([^`]+)`')
+_RE_BOLD = re.compile(r'\*\*([^*]+)\*\*')
+_RE_ITALIC = re.compile(r'\*([^*]+)\*')
+
 def _inline(text: str) -> str:
     """Inline markdown: bold, code, italic."""
     t = _e(text)
-    t = re.sub(r'`([^`]+)`', r'<code>\1</code>', t)
-    t = re.sub(r'\*\*([^*]+)\*\*', r'<strong>\1</strong>', t)
-    t = re.sub(r'\*([^*]+)\*', r'<em>\1</em>', t)
+    t = _RE_CODE.sub(r'<code>\1</code>', t)
+    t = _RE_BOLD.sub(r'<strong>\1</strong>', t)
+    t = _RE_ITALIC.sub(r'<em>\1</em>', t)
     return t
 
 

@@ -107,18 +107,20 @@ def _remote_refresh_loop() -> None:
             panes = await host.fetch_panes()
             _remote_panes_cache[host.alias] = panes
 
+    import logging as _rlog
+    _logger = _rlog.getLogger(__name__)
     # 首次立即拉取
     try:
         _aio.run(_poll_once())
-    except Exception:
-        pass
+    except Exception as e:
+        _logger.warning("remote refresh initial poll failed: %s", e)
 
     while True:
         time.sleep(_INTERVAL)
         try:
             _aio.run(_poll_once())
-        except Exception:
-            pass
+        except Exception as e:
+            _logger.warning("remote refresh poll failed: %s", e)
 
 
 @asynccontextmanager
@@ -419,9 +421,9 @@ def _enrich_domains(projects: list[dict]) -> list[dict]:
 
     # Resolve IPs in parallel (is_running already correct from collect_service)
     ip_map: dict[str, str] = {}
-    with ThreadPoolExecutor(max_workers=len(hostnames)) as pool:
+    with ThreadPoolExecutor(max_workers=min(10, len(hostnames))) as pool:
         ip_futs = {pool.submit(_resolve_ip, h): h for h in hostnames}
-        for f in as_completed(ip_futs):
+        for f in as_completed(ip_futs, timeout=8.0):
             ip_map[ip_futs[f]] = f.result()
 
     for p in projects:
@@ -493,12 +495,13 @@ def get_all_projects(force: bool = False) -> list[dict]:
 
 def _background_refresh():
     """Refresh cache every TTL seconds."""
+    import logging as _log
     while True:
         time.sleep(_CACHE_TTL)
         try:
             _rebuild_and_persist()
-        except Exception:
-            pass
+        except Exception as e:
+            _log.getLogger(__name__).warning("background refresh failed: %s", e)
 
 
 def _get_remote_host(alias: str) -> _RemoteHost | None:
@@ -591,7 +594,8 @@ def project_detail_page(request: Request, project_id: str):
     if item:
         masked = _mask_projects([item])[0] if not _is_admin(request) else item
         slim = {k: v for k, v in masked.items() if k not in _LAZY_FIELDS}
-        inline_data = _json.dumps(slim, default=str)
+        # 防止 </script> 注入：转义斜杠
+        inline_data = _json.dumps(slim, default=str).replace("</", r"<\/")
     else:
         inline_data = "null"
     return HTMLResponse(render_detail_page(project_id, name, inline_data), headers=_NC)
@@ -942,6 +946,11 @@ _AUTH_MAX = 5  # 每窗口最大尝试次数
 
 def _rate_limit_ok(ip: str) -> bool:
     now = time.time()
+    # 防止 dict 无限增长：超过 1000 个 IP 时清理过期条目
+    if len(_auth_attempts) > 1000:
+        expired = [k for k, v in _auth_attempts.items() if not v or now - v[-1] > _AUTH_WINDOW]
+        for k in expired:
+            del _auth_attempts[k]
     attempts = _auth_attempts.get(ip, [])
     attempts = [t for t in attempts if now - t < _AUTH_WINDOW]
     if len(attempts) >= _AUTH_MAX:
@@ -1558,25 +1567,40 @@ async def terminal_stream_ws(ws: WebSocket, target: str):
 
 _UPLOAD_DIR = Path("/tmp/mira-uploads")
 
+_ALLOWED_UPLOAD_TYPES = {"image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml", "image/bmp"}
+_UPLOAD_MAX = 50 * 1024 * 1024
+
 @api.post("/api/upload/image")
 async def upload_image(request: Request, file: UploadFile = File(...), host: str = ""):
     if not _is_admin(request):
         raise HTTPException(status_code=401, detail="需要管理员权限")
-    content = await file.read()
-    if len(content) > 50 * 1024 * 1024:
-        raise HTTPException(status_code=413, detail="文件太大（最大 50MB）")
+    # 先验证类型，再读取完整内容
+    ct = (file.content_type or "").split(";")[0].strip().lower()
+    if ct not in _ALLOWED_UPLOAD_TYPES:
+        raise HTTPException(status_code=415, detail=f"只允许上传图片文件，不支持 {ct}")
+    # 分块读取，避免一次性加载超大文件到内存
+    chunks = []
+    total = 0
+    while True:
+        chunk = await file.read(1024 * 1024)  # 1MB chunks
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > _UPLOAD_MAX:
+            raise HTTPException(status_code=413, detail="文件太大（最大 50MB）")
+        chunks.append(chunk)
+    content = b"".join(chunks)
     # 远程代理：带 host 参数时转发到远程主机
     if host:
         remote_host = _get_remote_host(host)
         if remote_host is None:
             raise HTTPException(status_code=404, detail=f"未知远程主机: {host}")
-        result = await remote_host.proxy_upload(content, file.filename or "file", file.content_type or "")
+        result = await remote_host.proxy_upload(content, file.filename or "file", ct)
         if result is None:
             raise HTTPException(status_code=502, detail=f"远程主机 {host} 不可达")
         return result
     import uuid, mimetypes
     _UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-    ct = file.content_type or ""
     ext = Path(file.filename or "file").suffix or (mimetypes.guess_extension(ct) or "")
     dest = _UPLOAD_DIR / f"{uuid.uuid4().hex[:10]}{ext}"
     dest.write_bytes(content)
@@ -1887,7 +1911,10 @@ async def terminal_new_window(request: Request, body: dict):
     cwd = (body.get("cwd") or "").strip() or None
     cmd = [_TMUX_BIN, "new-window", "-t", "mira"]
     if cwd:
-        cmd += ["-c", cwd]
+        cwd_path = Path(cwd).expanduser().resolve()
+        if not cwd_path.is_dir():
+            raise HTTPException(status_code=400, detail="cwd 目录不存在")
+        cmd += ["-c", str(cwd_path)]
     result = subprocess.run(cmd, env=_TMUX_ENV, capture_output=True, text=True)
     if result.returncode != 0:
         raise HTTPException(status_code=500, detail=result.stderr.strip())

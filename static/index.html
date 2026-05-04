@@ -2099,7 +2099,7 @@ async function doLogin() {
       method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({password: pw}),
     });
-    if (!res.ok) throw new Error('wrong');
+    if (!res.ok) throw new Error(res.status === 429 ? 'rate' : 'wrong');
     const { token } = await res.json();
     _adminToken = token;
     _isAdmin = true;
@@ -2109,8 +2109,16 @@ async function doLogin() {
     loadProjects();
     loadBalance();
     if (_loginCallback) { const fn = _loginCallback; _loginCallback = null; fn(); }
-  } catch(_) {
-    document.getElementById('login-error').style.display = 'block';
+  } catch(e) {
+    const errEl = document.getElementById('login-error');
+    if (e.message === 'rate') {
+      errEl.textContent = '请求过于频繁，请稍后再试';
+    } else {
+      errEl.textContent = '密码错误，请重试';
+    }
+    errEl.style.display = 'block';
+    document.getElementById('login-password').value = '';
+    document.getElementById('login-password').focus();
   }
 }
 
@@ -2372,7 +2380,15 @@ function renderCards() {
 
   const grid = document.getElementById('project-grid');
   if (filtered.length === 0) {
-    grid.innerHTML = '<div class="empty-state">暂无项目</div>';
+    if (allProjects.length === 0) {
+      grid.innerHTML = '<div class="empty-state" style="text-align:center;padding:40px 20px;color:var(--text-muted)">'
+        + '<div style="font-size:32px;margin-bottom:12px">📂</div>'
+        + '<div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px">未发现项目</div>'
+        + '<div style="font-size:12px;line-height:1.6">请在 <code>vibe.yaml</code> 中配置 <code>scan_dirs</code> 扫描目录<br>'
+        + '或通过设置页面添加远程主机</div></div>';
+    } else {
+      grid.innerHTML = '<div class="empty-state">当前筛选条件下暂无项目</div>';
+    }
     return;
   }
   grid.innerHTML = filtered.map(renderCard).join('');
