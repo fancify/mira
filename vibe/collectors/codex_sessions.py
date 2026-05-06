@@ -47,9 +47,11 @@ def _all_jsonl_files() -> list[Path]:
 
 
 def _parse_session(jsonl_path: Path) -> dict:
-    """解析单个 Codex session，提取时间线和任务统计。"""
+    """解析单个 Codex session，提取时间线、任务统计和 token 用量。"""
     timestamps: list[datetime] = []
     task_durations: list[float] = []  # ms
+    # token 用量：取最后一个 token_count 事件的 total_token_usage（累计值）
+    last_token_usage: Optional[dict] = None
 
     try:
         with open(jsonl_path, encoding="utf-8", errors="replace") as f:
@@ -66,13 +68,23 @@ def _parse_session(jsonl_path: Path) -> dict:
                             dur = payload.get("duration_ms")
                             if isinstance(dur, (int, float)) and dur > 0:
                                 task_durations.append(dur)
+                        elif payload.get("type") == "token_count":
+                            info = payload.get("info")
+                            if info and isinstance(info, dict):
+                                usage = info.get("total_token_usage")
+                                if usage:
+                                    last_token_usage = usage
                 except Exception:
                     continue
     except Exception:
         pass
 
     timestamps.sort()
-    return {"timestamps": timestamps, "task_durations": task_durations}
+    return {
+        "timestamps": timestamps,
+        "task_durations": task_durations,
+        "token_usage": last_token_usage,
+    }
 
 
 def collect_codex_activity(project_path: str) -> dict:
@@ -124,6 +136,8 @@ def collect_codex_activity(project_path: str) -> dict:
     all_task_durations: list[float] = []
     day_counts: dict[str, float] = {}
     GAP_THRESHOLD = 30 * 60  # 30min
+    # token 累加
+    total_input = total_output = total_cached_input = total_reasoning = 0
 
     for f in matching:
         mtime = datetime.fromtimestamp(file_mtimes[f])
@@ -137,6 +151,14 @@ def collect_codex_activity(project_path: str) -> dict:
         parsed = _parse_session(f)
         all_task_durations.extend(parsed["task_durations"])
         timestamps = parsed["timestamps"]
+
+        # 累加每个 session 最终的 token 用量
+        tu = parsed.get("token_usage")
+        if tu:
+            total_input += tu.get("input_tokens", 0)
+            total_output += tu.get("output_tokens", 0)
+            total_cached_input += tu.get("cached_input_tokens", 0)
+            total_reasoning += tu.get("reasoning_output_tokens", 0)
 
         for i in range(1, len(timestamps)):
             gap = (timestamps[i] - timestamps[i - 1]).total_seconds()
@@ -162,6 +184,10 @@ def collect_codex_activity(project_path: str) -> dict:
         "session_spark_15d": spark_15d,
         "total_tasks": total_tasks,
         "avg_task_duration_sec": round(avg_task_ms / 1000, 1) if total_tasks else 0,
+        "input_tokens": total_input,
+        "output_tokens": total_output,
+        "cached_input_tokens": total_cached_input,
+        "reasoning_output_tokens": total_reasoning,
     }
 
     if len(_cache) > _CACHE_MAX:

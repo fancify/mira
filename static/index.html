@@ -2558,8 +2558,8 @@ function renderCard(p) {
       <div class="card-codex-meta">
         <span class="ccx-label">Codex</span>
         <span class="ccx-val">${codexLastStr}</span>
-        <span class="ccx-val">${cx.total_tasks||0} 任务</span>
-        <span class="ccx-val">${cx.session_count_30d||0} 会话/30d</span>
+        <span class="ccx-val">${cx.session_count_30d||0} 会话</span>
+        <span class="ccx-val">${fmtNum((cx.input_tokens||0)+(cx.output_tokens||0))} tok</span>
       </div>
     </div>` : '';
 
@@ -2686,6 +2686,15 @@ function renderGlobal() {
   const totalOut = allProjects.reduce((s, p) => s + ((p.claude_activity?.output_tokens) || 0), 0);
   const totalIn = allProjects.reduce((s, p) => s + ((p.claude_activity?.input_tokens) || 0), 0);
   const totalCacheR = allProjects.reduce((s, p) => s + ((p.claude_activity?.cache_read_tokens) || 0), 0);
+  // Codex aggregates
+  const codexSessions30d = allProjects.reduce((s, p) => s + ((p.codex_activity?.session_count_30d) || 0), 0);
+  const codexTasks = allProjects.reduce((s, p) => s + ((p.codex_activity?.total_tasks) || 0), 0);
+  const codexHours = allProjects.reduce((s, p) => s + ((p.codex_activity?.active_hours) || 0), 0);
+  const codexIn = allProjects.reduce((s, p) => s + ((p.codex_activity?.input_tokens) || 0), 0);
+  const codexOut = allProjects.reduce((s, p) => s + ((p.codex_activity?.output_tokens) || 0), 0);
+  const codexCached = allProjects.reduce((s, p) => s + ((p.codex_activity?.cached_input_tokens) || 0), 0);
+  const codexReasoning = allProjects.reduce((s, p) => s + ((p.codex_activity?.reasoning_output_tokens) || 0), 0);
+  const hasCodex = codexSessions30d > 0;
 
   document.getElementById('kpi-row').innerHTML = `
     <div class="kpi-card">
@@ -2719,7 +2728,19 @@ function renderGlobal() {
         <div class="kpi-vdiv"></div>
         <div class="kpi-stat"><span class="kpi-label">输入</span><span class="kpi-value kpi-muted">${anyCostMasked ? '***' : fmtNum(totalIn)}</span></div>
       </div>
-    </div>`;
+    </div>
+    ${hasCodex ? `<div class="kpi-card" style="flex:1.4;border-color:rgba(34,197,94,.2)">
+      <div class="kpi-accent-bar" style="background:var(--green,#22c55e)"></div>
+      <div class="kpi-inner">
+        <div class="kpi-stat"><span class="kpi-label">Codex 输入</span><span class="kpi-value" style="color:var(--green,#22c55e)">${fmtNum(codexIn)}</span></div>
+        <div class="kpi-vdiv"></div>
+        <div class="kpi-stat"><span class="kpi-label">Cache</span><span class="kpi-value kpi-muted">${fmtNum(codexCached)}</span></div>
+        <div class="kpi-vdiv"></div>
+        <div class="kpi-stat"><span class="kpi-label">输出</span><span class="kpi-value" style="color:var(--green,#22c55e)">${fmtNum(codexOut)}</span></div>
+        <div class="kpi-vdiv"></div>
+        <div class="kpi-stat"><span class="kpi-label">推理</span><span class="kpi-value kpi-muted">${fmtNum(codexReasoning)}</span></div>
+      </div>
+    </div>` : ''}`;
 
   const tbody = document.getElementById('summary-tbody');
   tbody.innerHTML = allProjects.map(p => {
