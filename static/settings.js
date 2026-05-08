@@ -348,6 +348,7 @@ function initSettings() {
 
     <div class="settings-footer">
       <button id="settings-logout-btn" onclick="if(typeof logout==='function')logout();closeSettings()" style="display:none;margin-right:auto;background:none;border:1px solid var(--border);color:var(--text-muted,var(--muted));padding:7px 14px;border-radius:6px;cursor:pointer;font-size:13px" title="退出登录">退出登录</button>
+      <a href="/settings" class="settings-btn-cancel" style="text-decoration:none;text-align:center;margin-right:auto">⚙ 高级设置</a>
       <button class="settings-btn-cancel" onclick="closeSettings()">取消</button>
       <button class="settings-btn-save" onclick="saveSettings()">保存</button>
     </div>

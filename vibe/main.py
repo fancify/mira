@@ -694,6 +694,12 @@ def new_project_page(request: Request):
     return HTMLResponse(render_new_project_page(), headers=_NC)
 
 
+@api.get("/settings", response_class=HTMLResponse)
+def settings_console_page(request: Request):
+    from vibe.settings_page import render_settings_page
+    return render_settings_page()
+
+
 @api.post("/api/projects/brainstorm")
 def brainstorm_project(request: Request, body: dict):
     if not _is_admin(request):
