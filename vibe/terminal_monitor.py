@@ -12,6 +12,9 @@ _monitor_lock = threading.Lock()
 
 _AUTO_COMMANDS = {"claude", "ccc"}
 _AUTO_TITLE_FRAGMENTS = {"Claude Code"}
+_CLAUDE_TITLE_ICONS = {"✳", "⠐", "⠂", "⠈", "⠁", "⠑", "⠃", "⠊", "⠔", "⠤", "⠠"}  # Claude Code spinner chars
+_CODEX_COMMANDS = {"codex"}
+_CODEX_TITLE_FRAGMENTS = {"Codex"}
 
 WAIT_PATTERNS = [
     r"do you want to",
@@ -110,21 +113,43 @@ def _poll_once() -> None:
     with _monitor_lock:
         tracked_targets = set(_monitored.keys())
 
-    # Auto-discover Claude panes — compute project_id OUTSIDE the lock (I/O)
+    # Auto-discover Claude / Codex panes — compute project_id OUTSIDE the lock (I/O)
     new_entries = {}
     for pane in all_panes:
         title = pane.get("title", "")
         is_claude = pane["command"] in _AUTO_COMMANDS or any(
             frag in title for frag in _AUTO_TITLE_FRAGMENTS
+        ) or (title and title[0] in _CLAUDE_TITLE_ICONS)
+        is_codex = not is_claude and (
+            pane["command"] in _CODEX_COMMANDS or any(
+                frag in title for frag in _CODEX_TITLE_FRAGMENTS
+            )
         )
-        if is_claude:
-            # Only match project for panes we haven't seen before
+        # For unrecognized node panes not yet tracked, check terminal output for Codex
+        # Codex uses alternate screen, so check both scrollback and visible pane
+        if not is_claude and not is_codex and pane["target"] not in tracked_targets:
+            _codex_markers = ("OpenAI Codex", "codex app", "gpt-5.4 ", "gpt-5.3 ", "gpt-4o ")
+            for cap_args in [
+                ["-p"],               # visible (alternate screen)
+                ["-p", "-S", "-50"],  # scrollback
+            ]:
+                try:
+                    import subprocess as _sp
+                    proc = _sp.run(
+                        ["tmux", "capture-pane", "-t", pane["target"]] + cap_args,
+                        capture_output=True, text=True, timeout=3,
+                    )
+                    if proc.returncode == 0 and any(m in proc.stdout for m in _codex_markers):
+                        is_codex = True
+                        break
+                except Exception:
+                    pass
+        if is_claude or is_codex:
             project_id = (
                 None if pane["target"] in tracked_targets
                 else _match_project(pane["cwd"])
             )
-            # Display "claude" instead of "node" when this is a claude pane
-            display_cmd = "claude" if is_claude else pane["command"]
+            display_cmd = "codex" if is_codex else "claude"
             new_entries[pane["target"]] = (pane, project_id, display_cmd)
 
     with _monitor_lock:

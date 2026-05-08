@@ -36,6 +36,12 @@ class CodexActivity(BaseModel):
     session_spark_15d: list[float] = []
     total_tasks: int = 0
     avg_task_duration_sec: float = 0.0
+    # token usage
+    input_tokens: int = 0
+    output_tokens: int = 0
+    cached_input_tokens: int = 0
+    reasoning_output_tokens: int = 0
+    estimated_cost_usd: float = 0.0
 
 
 class PlanTask(BaseModel):

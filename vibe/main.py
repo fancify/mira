@@ -841,6 +841,24 @@ def get_project_prompts(request: Request, project_id: str):
     return get_prompts(project_id)
 
 
+@api.get("/api/projects/{project_id}/sessions")
+def get_project_sessions(request: Request, project_id: str):
+    """Return per-session token stats for a project."""
+    if not _is_admin(request):
+        raise HTTPException(status_code=401, detail="需要管理员权限")
+    projects = get_all_projects_with_remote()
+    proj = next((p for p in projects if p["id"] == project_id), None)
+    if not proj:
+        raise HTTPException(status_code=404, detail="Project not found")
+    from pathlib import Path as _P
+    project_path = proj.get("path", "")
+    encoded = '-' + project_path.replace('/', '-').lstrip('-')
+    folder_prefix = str(_P.home() / '.claude' / 'projects' / encoded)
+    aliases = (proj.get("_vibe_config") or {}).get("aliases", [])
+    from vibe.history_db import get_session_details
+    return get_session_details(project_id, folder_prefix, aliases)
+
+
 @api.get("/api/prompts")
 def get_all_prompts(request: Request):
     """Return user prompts grouped by project from the session index DB."""
@@ -1080,6 +1098,52 @@ def claude_usage(request: Request):
         },
         "overage_status": h.get("anthropic-ratelimit-unified-overage-status"),
     }
+
+
+@api.get("/api/codex-usage")
+def codex_usage(request: Request):
+    """Get Codex rate limit info from its local SQLite logs."""
+    if not _is_admin(request):
+        raise HTTPException(status_code=401, detail="需要管理员权限")
+    import sqlite3, re, json as _json
+    db_path = Path.home() / ".codex" / "logs_2.sqlite"
+    if not db_path.exists():
+        return {"error": "no_db", "message": "Codex logs DB not found"}
+    try:
+        conn = sqlite3.connect(str(db_path), timeout=3)
+        row = conn.execute(
+            "SELECT feedback_log_body FROM logs "
+            "WHERE feedback_log_body LIKE '%rate_limits%' AND feedback_log_body LIKE '%used_percent%' "
+            "ORDER BY ts DESC LIMIT 1"
+        ).fetchone()
+        conn.close()
+        if not row:
+            return {"error": "no_data"}
+        def _parse_window(text, name):
+            m = re.search(
+                rf'"{name}":\{{"used_percent":(\d+),"window_minutes":(\d+),'
+                rf'"reset_after_seconds":(\d+),"reset_at":(\d+)\}}',
+                text,
+            )
+            if not m:
+                return None
+            return {
+                "used_percent": int(m.group(1)),
+                "window_minutes": int(m.group(2)),
+                "reset_at": int(m.group(4)),
+            }
+        primary = _parse_window(row[0], "primary")
+        secondary = _parse_window(row[0], "secondary")
+        if not primary:
+            return {"error": "parse_error"}
+        m_top = re.search(r'"limit_reached":(true|false)', row[0])
+        return {
+            "limit_reached": m_top.group(1) == "true" if m_top else False,
+            "session": primary,
+            "weekly": secondary,
+        }
+    except Exception as e:
+        return {"error": str(e)}
 
 
 @api.get("/api/codex-stats")
@@ -1916,6 +1980,14 @@ def dev_panes_list(request: Request):
                     match = proj
         project_id = mon.get("project_id") or (Path(match["path"]).name if match else Path(cwd).name)
         project_name = (match["name"] if match else None) or project_id
+        # Detect tool type from terminal_monitor's resolved command
+        mon_cmd = mon.get("command", "")
+        if mon_cmd == "codex":
+            tool = "codex"
+        elif mon_cmd == "claude":
+            tool = "claude"
+        else:
+            tool = None
         result.append({
             "target": target,
             "label": label,
@@ -1924,6 +1996,7 @@ def dev_panes_list(request: Request):
             "waiting": mon.get("waiting", False),
             "project_id": project_id,
             "project_name": project_name,
+            "tool": tool,
         })
     # 合并远程 pane（加 alias 前缀）
     for host in _remote_hosts:
@@ -1936,6 +2009,34 @@ def dev_panes_list(request: Request):
                 "_host_online": host.online,
             })
     return result
+
+
+@api.get("/api/dev/pane-tokens")
+def dev_pane_tokens(request: Request, target: str = "", tool: str = ""):
+    """Return token stats for the latest session in this pane's CWD."""
+    if not _is_admin(request):
+        raise HTTPException(status_code=401, detail="需要管理员权限")
+    if not target:
+        raise HTTPException(status_code=400, detail="target required")
+    from vibe.tmux_bridge import list_panes
+    pane = next((p for p in list_panes() if p["target"] == target), None)
+    if not pane:
+        raise HTTPException(status_code=404, detail="Pane not found")
+    cwd = pane["cwd"]
+
+    if tool == "codex":
+        from vibe.collectors.codex_sessions import get_latest_codex_session_stats
+        stats = get_latest_codex_session_stats(cwd)
+        return stats or {}
+
+    # Default: Claude
+    encoded = '-' + cwd.replace('/', '-').lstrip('-')
+    folder_prefix = str(Path.home() / '.claude' / 'projects' / encoded)
+    from vibe.history_db import get_latest_session_stats
+    stats = get_latest_session_stats(folder_prefix)
+    if stats:
+        stats["tool"] = "claude"
+    return stats or {}
 
 
 @api.delete("/api/dev/panes/{target:path}")

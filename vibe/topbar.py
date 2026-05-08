@@ -309,6 +309,10 @@ async function doLogin() {
 
 // ── Topbar Claude usage indicator ──
 async function _loadTopbarUsage() {
+  // Dev page manages its own usage display in the toolbar — skip topbar rings entirely
+  if (window._topbarUsageMode !== undefined) {
+    return;  // no retry — dev page handles everything
+  }
   try {
     const res = await fetch('/api/claude-usage', {headers: _adminToken ? {'X-Admin-Token': _adminToken} : {}});
     if (!res.ok) return;

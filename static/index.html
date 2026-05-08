@@ -2003,6 +2003,7 @@ body {
 <!-- MAIN PAGE -->
 <div id="panel-overview" style="padding: 0 28px 48px" class="main-page">
   <div class="kpi-row" id="kpi-row" style="margin-top:24px"></div>
+  <div class="kpi-row" id="kpi-ai-row" style="margin-top:12px"></div>
   <div id="balance-row" style="display:none;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:16px"></div>
 
   <!-- A: Base Services 状态卡片 -->
@@ -2614,7 +2615,6 @@ function renderCard(p) {
     return `<span class="card-spark15-bar${cls}" style="height:${h}px" title="${v.toFixed(1)}h 活跃"></span>`;
   }).join('');
 
-  const cx = p.codex_activity;
   const fmtTok = t => t >= 1e9 ? (t/1e9).toFixed(1)+'B' : t >= 1e6 ? (t/1e6).toFixed(1)+'M' : t >= 1e3 ? (t/1e3).toFixed(0)+'k' : String(t);
   const claudeLastStr = (() => {
     if (!ca || !ca.last_session) return '—';
@@ -2633,22 +2633,8 @@ function renderCard(p) {
       <div class="card-spark15">${spark15Bars}</div>
     </div>`;
 
-  // ── Codex mini block ──────────────────────────────────────
-  const codexLastStr = (() => {
-    if (!cx || !cx.last_session) return '';
-    const diffH = Math.floor((Date.now() - new Date(cx.last_session)) / 3600000);
-    const diffD = Math.floor(diffH / 24);
-    return diffH < 1 ? '刚刚' : diffH < 24 ? `${diffH}h前` : `${diffD}d前`;
-  })();
-  const codexMiniBlock = cx ? `
-    <div class="card-codex-mini">
-      <div class="card-codex-meta">
-        <span class="ccx-label">Codex</span>
-        <span class="ccx-val">${codexLastStr}</span>
-        <span class="ccx-val">${cx.total_tasks||0} 任务</span>
-        <span class="ccx-val">${cx.session_count_30d||0} 会话/30d</span>
-      </div>
-    </div>` : '';
+  // ── Codex card-level block (removed — shown in global KPI row instead) ─
+  const codexMiniBlock = '';
 
   // ── Footer: row1=services, row2=tags ─────────────────────
   const svcPills = deps.map(s => {
@@ -2791,7 +2777,8 @@ function renderGlobal() {
         <div class="kpi-vdiv"></div>
         <div class="kpi-stat"><span class="kpi-label">代码行数</span><span class="kpi-value kpi-green">${fmtNum(totalLines)}</span></div>
       </div>
-    </div>
+    </div>`;
+  document.getElementById('kpi-ai-row').innerHTML = `
     <div class="kpi-card" style="flex:1.6;border-color:rgba(var(--accent-light-rgb),.2)">
       <div class="kpi-accent-bar" style="background:var(--accent)"></div>
       <div class="kpi-inner">
@@ -2802,6 +2789,18 @@ function renderGlobal() {
         <div class="kpi-stat"><span class="kpi-label">输出</span><span class="kpi-value kpi-accent" id="kpi-out">${anyCostMasked ? '***' : '…'}</span></div>
         <div class="kpi-vdiv"></div>
         <div class="kpi-stat"><span class="kpi-label">输入</span><span class="kpi-value kpi-muted" id="kpi-in">${anyCostMasked ? '***' : '…'}</span></div>
+      </div>
+    </div>
+    <div class="kpi-card" style="flex:1.6;border-color:rgba(34,197,94,.25)">
+      <div class="kpi-accent-bar" style="background:var(--green)"></div>
+      <div class="kpi-inner">
+        <div class="kpi-stat"><span class="kpi-label">Codex 花费</span><span class="kpi-value kpi-green" id="kpi-codex-cost">…</span></div>
+        <div class="kpi-vdiv"></div>
+        <div class="kpi-stat"><span class="kpi-label">输入</span><span class="kpi-value kpi-muted" id="kpi-codex-in">…</span></div>
+        <div class="kpi-vdiv"></div>
+        <div class="kpi-stat"><span class="kpi-label">输出</span><span class="kpi-value kpi-green" id="kpi-codex-out">…</span></div>
+        <div class="kpi-vdiv"></div>
+        <div class="kpi-stat"><span class="kpi-label">30天会话</span><span class="kpi-value kpi-green" id="kpi-codex-session">…</span></div>
       </div>
     </div>`;
 
@@ -2817,6 +2816,16 @@ function renderGlobal() {
       if (el('kpi-in'))      el('kpi-in').textContent      = fmtNum(t.input_tokens || 0);
     }).catch(() => {});
   }
+
+  // Fetch Codex global stats
+  fetch('/api/codex-stats', {headers: _authHeaders()}).then(r => r.ok ? r.json() : null).then(d => {
+    if (!d || !d.session_count_30d) return;
+    const el = id => document.getElementById(id);
+    if (el('kpi-codex-cost'))   el('kpi-codex-cost').textContent   = '$' + (d.estimated_cost_usd || 0).toFixed(0);
+    if (el('kpi-codex-in'))     el('kpi-codex-in').textContent     = fmtNum(d.input_tokens || 0);
+    if (el('kpi-codex-out'))    el('kpi-codex-out').textContent    = fmtNum(d.output_tokens || 0);
+    if (el('kpi-codex-session')) el('kpi-codex-session').textContent = d.session_count_30d || 0;
+  }).catch(() => {});
 
   const tbody = document.getElementById('summary-tbody');
   tbody.innerHTML = allProjects.map(p => {

@@ -142,7 +142,17 @@ def _compute_session_stats(lines: list[str]) -> 'dict | None':
 
 def index_file(path: Path, session_id: str, project_id: str, project_name: str) -> None:
     """Incrementally index a JSONL file from its last_line pointer."""
-    from vibe.history_db import upsert_session, get_last_line, insert_message, set_last_line
+    from vibe.history_db import upsert_session, get_last_line, insert_message, set_last_line, _conn
+
+    # Don't overwrite a valid project_id with 'unclassified'
+    if project_id == 'unclassified':
+        try:
+            with _conn() as c:
+                row = c.execute("SELECT project_id FROM sessions WHERE id=?", (session_id,)).fetchone()
+                if row and row['project_id'] != 'unclassified':
+                    return  # already classified, keep existing
+        except Exception:
+            pass
 
     upsert_session(session_id, project_id, project_name, str(path))
     last = get_last_line(session_id)

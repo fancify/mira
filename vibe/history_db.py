@@ -340,6 +340,109 @@ def get_project_activity(
         return {}
 
 
+def get_latest_session_stats(folder_prefix: str) -> dict | None:
+    """Return token stats for the most recent session in a Claude project folder."""
+    folder_like = folder_prefix + '/%'
+    try:
+        with _conn() as conn:
+            row = conn.execute(
+                """
+                SELECT ds.session_id,
+                       ds.date,
+                       ds.messages,
+                       ds.input_tokens,
+                       ds.output_tokens,
+                       COALESCE(ds.cache_creation_tokens, 0) AS cache_creation_tokens,
+                       COALESCE(ds.cache_read_tokens, 0)     AS cache_read_tokens,
+                       ds.active_hours,
+                       s.last_ts
+                FROM   daily_stats ds
+                JOIN   sessions s ON s.id = ds.session_id
+                WHERE  s.file_path LIKE ?
+                ORDER  BY s.last_ts DESC
+                LIMIT  1
+                """,
+                (folder_like,),
+            ).fetchone()
+            if not row:
+                return None
+            inp = row['input_tokens'] or 0
+            out = row['output_tokens'] or 0
+            cc  = row['cache_creation_tokens'] or 0
+            cr  = row['cache_read_tokens'] or 0
+            cost = (inp * _PRICE_INPUT + out * _PRICE_OUTPUT
+                    + cc * _PRICE_CACHE_WRITE + cr * _PRICE_CACHE_READ)
+            return {
+                'session_id':             row['session_id'],
+                'date':                   row['date'],
+                'messages':               row['messages'] or 0,
+                'input_tokens':           inp,
+                'output_tokens':          out,
+                'cache_creation_tokens':  cc,
+                'cache_read_tokens':      cr,
+                'active_hours':           round(row['active_hours'] or 0, 2),
+                'estimated_cost_usd':     round(cost, 4),
+            }
+    except sqlite3.OperationalError:
+        return None
+
+
+def get_session_details(
+    project_id: str,
+    folder_prefix: str,
+    extra_ids: list[str] | None = None,
+) -> list[dict]:
+    """Return per-session token stats for a project, newest first."""
+    all_ids = [project_id] + list(extra_ids or [])
+    id_placeholders = ','.join('?' * len(all_ids))
+    folder_like = folder_prefix + '/%'
+
+    try:
+        with _conn() as conn:
+            rows = conn.execute(
+                f"""
+                SELECT ds.session_id,
+                       ds.date,
+                       ds.messages,
+                       ds.input_tokens,
+                       ds.output_tokens,
+                       COALESCE(ds.cache_creation_tokens, 0) AS cache_creation_tokens,
+                       COALESCE(ds.cache_read_tokens, 0)     AS cache_read_tokens,
+                       ds.active_hours,
+                       s.last_ts
+                FROM   daily_stats ds
+                JOIN   sessions s ON s.id = ds.session_id
+                WHERE  ds.project_id IN ({id_placeholders})
+                    OR s.file_path LIKE ?
+                ORDER  BY s.last_ts DESC
+                """,
+                all_ids + [folder_like],
+            ).fetchall()
+
+            result = []
+            for r in rows:
+                inp = r['input_tokens'] or 0
+                out = r['output_tokens'] or 0
+                cc  = r['cache_creation_tokens'] or 0
+                cr  = r['cache_read_tokens'] or 0
+                cost = (inp * _PRICE_INPUT + out * _PRICE_OUTPUT
+                        + cc * _PRICE_CACHE_WRITE + cr * _PRICE_CACHE_READ)
+                result.append({
+                    'session_id':             r['session_id'],
+                    'date':                   r['date'],
+                    'messages':               r['messages'] or 0,
+                    'input_tokens':           inp,
+                    'output_tokens':          out,
+                    'cache_creation_tokens':  cc,
+                    'cache_read_tokens':      cr,
+                    'active_hours':           round(r['active_hours'] or 0, 2),
+                    'estimated_cost_usd':     round(cost, 4),
+                })
+            return result
+    except sqlite3.OperationalError:
+        return []
+
+
 def rename_project_id(old_id: str, new_id: str) -> int:
     """Update sessions and daily_stats from old_id to new_id. Returns rows updated."""
     with _conn() as conn:
@@ -470,7 +573,10 @@ def get_stats(range_days: int = 30) -> dict:
             proj_rows = conn.execute(
                 """
                 SELECT ds.project_id,
-                       COALESCE(MAX(s.project_name), ds.project_id)  AS project_name,
+                       CASE WHEN MAX(s.project_name) IN ('未分类', 'unclassified', '')
+                            THEN ds.project_id
+                            ELSE COALESCE(MAX(s.project_name), ds.project_id)
+                       END  AS project_name,
                        COUNT(DISTINCT ds.session_id)                  AS sessions,
                        SUM(ds.messages)                               AS total_messages,
                        SUM(ds.input_tokens)                           AS total_input_tokens,

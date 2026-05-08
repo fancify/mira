@@ -61,17 +61,18 @@ def render_dev_page() -> str:
     color: var(--red, #ef4444);
     background: rgba(239, 68, 68, 0.12);
   }
-  .term-pane-dot {
-    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 3px;
-    transition: background .25s, box-shadow .25s;
+  .term-pane-badge {
+    width: 16px; height: 16px; border-radius: 4px; flex-shrink: 0; margin-top: 1px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; font-weight: 800; font-family: var(--mono);
+    letter-spacing: -0.5px; line-height: 1;
   }
-  .term-pane-dot.inactive { background: var(--border); }
-  .term-pane-dot.idle     { background: var(--green); }
-  .term-pane-dot.running  { background: var(--green); box-shadow: 0 0 6px rgba(63,185,80,.6); animation: pane-pulse .9s ease-in-out infinite; }
-  .term-pane-dot.confirm  { background: var(--orange); box-shadow: 0 0 6px var(--orange); animation: pane-pulse 1.4s ease-in-out infinite; }
-  .term-pane-dot.done     { background: var(--green); }
-  .term-pane-dot.error    { background: var(--red); }
-  @keyframes pane-pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+  .term-pane-badge.claude { background: rgba(129,140,248,.18); color: #818cf8; }
+  .term-pane-badge.codex  { background: rgba(34,197,94,.18); color: #22c55e; }
+  .term-pane-badge.unknown {
+    width: 8px; height: 8px; border-radius: 50%; margin: 4px 4px 0 4px;
+    background: none; border: 1.5px solid var(--border);
+  }
   .term-pane-info { min-width: 0; flex: 1; }
   .term-pane-name { font-size: 12px; color: var(--text); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 6px; }
   .term-pane-name-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
@@ -216,7 +217,7 @@ def render_dev_page() -> str:
       content: '›'; position: absolute; right: 16px; top: 50%;
       transform: translateY(-50%); color: var(--muted); font-size: 22px; line-height: 1;
     }
-    .term-pane-dot { margin-top: 6px; }
+    .term-pane-badge { margin-top: 4px; }
     .term-pane-name { font-size: 14px; }
     .term-pane-proj { font-size: 12px; margin-top: 3px; }
     .term-group-header { padding: 12px 16px; }
@@ -241,7 +242,7 @@ def render_dev_page() -> str:
       display: block; flex: 1; min-height: 0;
       background: var(--bg); color: var(--text);
       font-family: var(--mono); font-size: 11px; line-height: 1.35;
-      padding: 4px 6px; margin: 0;
+      padding: 4px 6px 40px; margin: 0;
       overflow-x: hidden; overflow-y: auto; -webkit-overflow-scrolling: touch;
       white-space: pre-wrap; word-break: break-word; overflow-wrap: anywhere;
       overscroll-behavior: contain;
@@ -368,8 +369,40 @@ def render_dev_page() -> str:
   }
   .term-toolbar-btn svg { display: block; }
   .term-toolbar-btn:hover { color: var(--accent); border-color: var(--accent); }
+  .toolbar-spacer { flex: 1; }
+  .toolbar-tokens {
+    font-size: 11px; color: var(--sub); display: flex; align-items: center; gap: 12px;
+    font-variant-numeric: tabular-nums;
+  }
+  .toolbar-tokens .tok-item { display: flex; align-items: center; gap: 2px; }
+  .toolbar-tokens .tok-icon { font-size: 10px; color: var(--muted); }
+  .toolbar-tokens .tok-val { font-weight: 600; }
+  .toolbar-tokens .tok-cost { color: var(--purple); font-weight: 700; }
+  .tok-badge { font-size: 9px; font-weight: 700; letter-spacing: .5px; padding: 1px 6px; border-radius: 3px; text-transform: uppercase; }
+  .tok-badge.claude { background: rgba(129,140,248,.15); color: #818cf8; }
+  .tok-badge.codex { background: rgba(34,197,94,.15); color: #22c55e; }
+  .toolbar-usage {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 11px; font-variant-numeric: tabular-nums;
+  }
+  .mobile-token-bar { display: none; }
   @media (max-width: 900px) {
     .term-toolbar { display: none !important; }
+    .mobile-token-bar {
+      display: none; padding: 6px 12px;
+      font-size: 11px; color: var(--sub); background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      font-variant-numeric: tabular-nums;
+      flex-shrink: 0;
+    }
+    .mobile-token-bar.visible { display: flex; gap: 12px; align-items: center; }
+    .mobile-token-bar .tok-item { display: flex; align-items: center; gap: 2px; }
+    .mobile-token-bar .tok-icon { font-size: 10px; color: var(--muted); }
+    .mobile-token-bar .tok-val { font-weight: 600; }
+    .mobile-token-bar .tok-cost { color: var(--purple); font-weight: 700; }
+    .mobile-token-bar .tok-badge { font-size: 9px; font-weight: 700; letter-spacing: .5px; padding: 1px 6px; border-radius: 3px; text-transform: uppercase; }
+    .mobile-token-bar .tok-badge.claude { background: rgba(129,140,248,.15); color: #818cf8; }
+    .mobile-token-bar .tok-badge.codex { background: rgba(34,197,94,.15); color: #22c55e; }
   }
 
   /* ── Toast notification ── */
@@ -520,10 +553,8 @@ def render_dev_page() -> str:
     letter-spacing: .5px;
   }
   [data-theme="neon-pixel"] .term-group-arrow { color: rgba(0,255,0,.5); }
-  [data-theme="neon-pixel"] .term-pane-dot.idle    { box-shadow: 0 0 5px var(--green); }
-  [data-theme="neon-pixel"] .term-pane-dot.running { box-shadow: 0 0 8px var(--green), 0 0 18px rgba(0,255,0,.5); }
-  [data-theme="neon-pixel"] .term-pane-dot.confirm { box-shadow: 0 0 8px var(--orange), 0 0 18px rgba(255,136,0,.5); }
-  [data-theme="neon-pixel"] .term-pane-dot.error   { box-shadow: 0 0 8px var(--red), 0 0 14px rgba(255,0,64,.5); }
+  [data-theme="neon-pixel"] .term-pane-badge.claude { box-shadow: 0 0 5px rgba(129,140,248,.4); }
+  [data-theme="neon-pixel"] .term-pane-badge.codex  { box-shadow: 0 0 5px rgba(34,197,94,.4); }
   [data-theme="neon-pixel"] .term-pane-row.active {
     background: rgba(255,0,255,.1);
     border-left-color: #ff00ff;
@@ -575,10 +606,8 @@ def render_dev_page() -> str:
     letter-spacing: .5px;
   }
   [data-theme="pixel-cyber"] .term-group-arrow { color: rgba(0,212,255,.45); }
-  [data-theme="pixel-cyber"] .term-pane-dot.idle    { box-shadow: 0 0 5px var(--green); }
-  [data-theme="pixel-cyber"] .term-pane-dot.running { box-shadow: 0 0 8px var(--green), 0 0 18px rgba(0,255,136,.4); }
-  [data-theme="pixel-cyber"] .term-pane-dot.confirm { box-shadow: 0 0 8px var(--orange), 0 0 18px rgba(255,170,0,.4); }
-  [data-theme="pixel-cyber"] .term-pane-dot.error   { box-shadow: 0 0 8px var(--red), 0 0 14px rgba(255,51,85,.4); }
+  [data-theme="pixel-cyber"] .term-pane-badge.claude { box-shadow: 0 0 5px rgba(129,140,248,.4); }
+  [data-theme="pixel-cyber"] .term-pane-badge.codex  { box-shadow: 0 0 5px rgba(34,197,94,.4); }
   /* 激活 pane：红色边框 + 青色内阴影 */
   [data-theme="pixel-cyber"] .term-pane-row.active {
     background: rgba(255,0,85,.09);
@@ -749,91 +778,30 @@ function escHtml(s) {
 
 // ── State ──────────────────────────────────────────────────────────────────────
 let _currentTarget = null;
-const _paneState = {};
-const _groupCollapsed = {};  // project_id -> bool
+const _groupCollapsed = {};
+const _paneToolMap = {};  // target -> tool type  // project_id -> bool
 const _paneHostMap = {};     // target -> host alias (远程 pane 映射)
 const _filterProject = new URLSearchParams(location.search).get('project') || null;
 
-// ── State detection (for sidebar dots) ────────────────────────────────────────
-function _detectState(text) {
-  if (!text || !text.trim()) return 'idle';
-  // Filter out status-bar lines (e.g. Claude Code ⏵⏵, tmux status)
-  const lines = text.trimEnd().split('\n')
-    .filter(l => l.trim())
-    .filter(l => !/[⏵⏴]\s*\S/.test(l) && !/^─+$/.test(l.trim()));
-  if (!lines.length) return 'idle';
-  const last = lines[lines.length - 1];
-  const tail = lines.slice(-6).join('\n');
-  if (/\(y\/n\)|\[Y\/n\]|\[y\/N\]|yes\/no|Do you want|Shall I|Would you like|proceed\?|continue\?|Are you sure/i.test(tail))
-    return 'confirm';
-  if (/\b(Error:|ERROR:|✗|FAILED|Exception:|Traceback|SyntaxError|TypeError|ValueError|ModuleNotFound)\b/.test(tail))
-    return 'error';
-  if (/✓|✅|\bDone\b|\bCompleted\b|\bAll done\b|\bSuccess\b|\bfinished\b|\* \w+ for \d/i.test(tail))
-    return 'done';
-  if (/[$❯>%#]\s*$/.test(last))
-    return 'idle';
-  return 'running';
-}
-
-function _onStateChange(target, newState) {
-  const prev = _paneState[target];
-  _paneState[target] = newState;
-  if (newState === prev) return;
-  const row = document.querySelector(`.term-pane-row[data-target="${CSS.escape(target)}"]`);
-  if (row) {
-    const dot = row.querySelector('.term-pane-dot');
-    if (dot) dot.className = 'term-pane-dot ' + (newState || 'inactive');
-  }
-  if (newState === 'confirm' || newState === 'done' || newState === 'error') {
-    _maybeNotify(target, newState);
-  }
-}
-
-// ── Notifications ─────────────────────────────────────────────────────────────
-function _maybeNotify(target, state) {
-  if (state === 'confirm') playNotificationSound();
-}
-
-// ── Background polling (sidebar dots only) ────────────────────────────────────
-let _bgPollTimer = null;
-async function _bgPoll() {
-  var inDetail = document.getElementById('dev-page').classList.contains('detail-open');
-  // On mobile detail view: skip ALL polling to avoid any interference with IME/input
-  if (_isMobile && inDetail) {
-    _bgPollTimer = setTimeout(_bgPoll, 30000);
-    return;
-  }
-  var rows = inDetail && _currentTarget
-    ? document.querySelectorAll('.term-pane-row[data-target="' + CSS.escape(_currentTarget) + '"]')
-    : document.querySelectorAll('.term-pane-row');
-  for (const row of rows) {
-    const target = row.dataset.target;
-    try {
-      const res = await fetch(
-        '/api/terminals/' + encodeURIComponent(target) + '/output?lines=30',
-        { headers: _authHeaders() });
-      if (!res.ok) continue;
-      const data = await res.json();
-      _onStateChange(target, _detectState(data.output || ''));
-    } catch(e) {}
-  }
-  _bgPollTimer = setTimeout(_bgPoll, inDetail ? 15000 : 10000);
-}
+// ── State detection / polling removed — dots are static green ────────────────
 
 // ── Pane row renderer ─────────────────────────────────────────────────────────
 function _renderPaneRow(p, st) {
+  var _badge = p.tool === 'codex' ? '<div class="term-pane-badge codex">X</div>'
+    : p.tool === 'claude' ? '<div class="term-pane-badge claude">C</div>'
+    : '<div class="term-pane-badge unknown"></div>';
   return `<div class="term-pane-row${_currentTarget === p.target ? ' active' : ''}"
        data-target="${escHtml(p.target)}"
        data-cmd="${escHtml(p.command || '')}"
-       data-project-id="${escHtml(p.project_id || '')}">
-    <div class="term-pane-dot ${st}"></div>
+       data-project-id="${escHtml(p.project_id || '')}"
+       data-tool="${escHtml(p.tool || '')}">
+    ${_badge}
     <div class="term-pane-info">
       <div class="term-pane-name">
-        <span class="term-pane-name-text">${escHtml(p.label || p.target)}</span>
+        <span class="term-pane-name-text">${escHtml((p.label || p.target).replace(/^.*\//, ''))}</span>
         ${p._host ? `<span class="term-host-badge${p._host_online === false ? ' offline' : ''}">${escHtml(p._host)}</span>` : ''}
         <span class="term-pane-kill" title="关闭终端" onclick="event.stopPropagation(); killPane(this);">×</span>
       </div>
-      <div class="term-pane-sub">${escHtml(p.command || '')}</div>
     </div>
   </div>`;
 }
@@ -850,6 +818,8 @@ async function loadPanes(forceRebuild) {
     if (res.status === 401) { openLoginModal(init); return; }
     if (!res.ok) return;
     const panes = await res.json();
+    // Cache tool type for each pane
+    for (const p of panes) { if (p.tool) _paneToolMap[p.target] = p.tool; }
     // 更新远程 pane 映射
     for (const p of panes) {
       if (p._host) _paneHostMap[p.target] = p._host;
@@ -866,7 +836,7 @@ async function loadPanes(forceRebuild) {
     if (_flatMode) {
       // Flat list: no grouping
       for (const p of panes) {
-        const st = _paneState[p.target] || 'inactive';
+        const st = 'idle';
         html += _renderPaneRow(p, st);
       }
     } else {
@@ -895,7 +865,7 @@ async function loadPanes(forceRebuild) {
         </div>
         <div class="term-group-body${collapsed ? ' collapsed' : ''}" data-group-body="${escHtml(pid)}">`;
         for (const p of grp.panes) {
-          const st = _paneState[p.target] || 'inactive';
+          const st = 'idle';
           html += _renderPaneRow(p, st);
         }
         html += '</div>';
@@ -905,13 +875,15 @@ async function loadPanes(forceRebuild) {
     // to avoid interrupting IME/voice input in the iframe
     var inDetail = document.getElementById('dev-page').classList.contains('detail-open');
     if (inDetail && !forceRebuild) {
-      // Only update status dots without touching DOM structure
+      // In detail view, update data-tool and badge on pane rows
       for (const p of panes) {
-        const row = document.querySelector('.term-pane-row[data-target="' + CSS.escape(p.target) + '"]');
-        if (row) {
-          var dot = row.querySelector('.term-pane-dot');
-          var st = _paneState[p.target] || 'inactive';
-          if (dot) dot.className = 'term-pane-dot ' + st;
+        var row = document.querySelector('.term-pane-row[data-target="' + CSS.escape(p.target) + '"]');
+        if (!row || !p.tool) continue;
+        row.dataset.tool = p.tool;
+        var badge = row.querySelector('.term-pane-badge');
+        if (badge && badge.classList.contains('unknown')) {
+          badge.className = 'term-pane-badge ' + p.tool;
+          badge.textContent = p.tool === 'codex' ? 'X' : 'C';
         }
       }
     } else {
@@ -1017,6 +989,114 @@ async function selectPane(target, cmd) {
   }
 
   showTerminal();
+  var paneRow = document.querySelector('.term-pane-row[data-target="' + CSS.escape(target) + '"]');
+  var tool = _paneToolMap[target] || (paneRow ? paneRow.dataset.tool : '') || '';
+  await _loadPaneTokens(target, tool);
+  _updateTopbarUsage(tool);
+}
+
+async function _loadPaneTokens(target, tool) {
+  var desktop = document.getElementById('toolbar-tokens');
+  var mobile = document.getElementById('mobile-token-bar');
+  if (desktop) desktop.innerHTML = '';
+  if (mobile) { mobile.innerHTML = ''; mobile.classList.remove('visible'); }
+  if (!tool) return;
+  try {
+    var res = await fetch('/api/dev/pane-tokens?target=' + encodeURIComponent(target) + '&tool=' + encodeURIComponent(tool), { headers: _authHeaders() });
+    if (!res.ok) return;
+    var d = await res.json();
+    var hasTool = d && d.tool;
+    if (!hasTool && (!d || !d.estimated_cost_usd)) {
+      // No token data — just show tool badge
+      var badge = tool === 'codex'
+        ? '<span class="tok-badge codex">Codex</span>'
+        : '<span class="tok-badge claude">Claude</span>';
+      if (desktop) desktop.innerHTML = badge;
+      if (mobile) { mobile.innerHTML = badge; mobile.classList.add('visible'); }
+      return;
+    }
+    if (!hasTool) d.tool = tool;
+    var fT = function(t) { if (!t) return '—'; if (t>=1e6) return (t/1e6).toFixed(1)+'M'; if (t>=1e3) return (t/1e3).toFixed(0)+'k'; return String(t); };
+    var cost = d.estimated_cost_usd < 1 ? '$' + d.estimated_cost_usd.toFixed(2) : '$' + d.estimated_cost_usd.toFixed(1);
+    var badge = d.tool === 'codex'
+      ? '<span class="tok-badge codex">Codex</span>'
+      : '<span class="tok-badge claude">Claude</span>';
+    var html = badge;
+    if (d.tool === 'codex') {
+      html +=
+        '<span class="tok-item" title="输入 tokens"><span class="tok-icon">↓</span><span class="tok-val">' + fT(d.input_tokens) + '</span></span>' +
+        '<span class="tok-item" title="输出 tokens"><span class="tok-icon">↑</span><span class="tok-val">' + fT(d.output_tokens) + '</span></span>' +
+        '<span class="tok-item" title="缓存输入 tokens"><span class="tok-icon">◆</span><span class="tok-val">' + fT(d.cached_input_tokens) + '</span></span>' +
+        '<span class="tok-item"><span class="tok-cost">' + cost + '</span></span>';
+    } else {
+      html +=
+        '<span class="tok-item" title="输入 tokens"><span class="tok-icon">↓</span><span class="tok-val">' + fT(d.input_tokens) + '</span></span>' +
+        '<span class="tok-item" title="输出 tokens"><span class="tok-icon">↑</span><span class="tok-val">' + fT(d.output_tokens) + '</span></span>' +
+        '<span class="tok-item" title="缓存读取 tokens"><span class="tok-icon">◆</span><span class="tok-val">' + fT(d.cache_read_tokens) + '</span></span>' +
+        '<span class="tok-item"><span class="tok-cost">' + cost + '</span></span>';
+    }
+    if (desktop) desktop.innerHTML = html;
+    if (mobile) { mobile.innerHTML = html; mobile.classList.add('visible'); }
+  } catch(e) { /* non-fatal */ }
+}
+
+// ── Topbar usage: switch between Claude / Codex ──────────────────────────────
+window._topbarUsageMode = null;  // null = not yet loaded into toolbar
+
+function _mobileUsageText(d) {
+  function _fmtReset(ts) {
+    if (!ts) return '';
+    var diff = ts * 1000 - Date.now();
+    if (diff <= 0) return '';
+    var d = Math.floor(diff / 86400000), h = Math.floor((diff % 86400000) / 3600000), m = Math.floor((diff % 3600000) / 60000);
+    return d > 0 ? d + 'd' : h > 0 ? h + 'h' : m + 'm';
+  }
+  function _winHtml(win, label) {
+    if (!win) return '';
+    var pct = win.utilization != null ? Math.round(win.utilization * 100) : (win.used_percent || 0);
+    var cls = pct >= 90 ? 'color:var(--red)' : pct >= 60 ? 'color:var(--orange)' : 'color:var(--green)';
+    var reset = _fmtReset(win.resets_at || win.reset_at);
+    var h = '<span style="' + cls + ';font-weight:700">' + pct + '%</span>';
+    if (reset) h += ' <span style="font-size:9px;color:var(--muted)">' + reset + '</span>';
+    return h;
+  }
+  var s = d.session, w = d.weekly;
+  var parts = [];
+  if (s) parts.push(_winHtml(s, '会话'));
+  if (w) parts.push(_winHtml(w, '周'));
+  if (!parts.length) return '';
+  return '<span class="tok-item" style="gap:4px">' + parts.join('<span style="color:var(--border)">·</span>') + '</span>';
+}
+
+async function _updateTopbarUsage(tool) {
+  var el = document.getElementById('toolbar-usage');
+  var topbarEl = document.getElementById('topbar-usage');
+  if (!el) return;
+  if (window._topbarUsageMode && (tool || 'claude') === window._topbarUsageMode) return;
+  window._topbarUsageMode = tool || 'claude';
+
+  // Hide topbar usage, show in toolbar instead
+  if (topbarEl) topbarEl.style.display = 'none';
+
+  var apiUrl = window._topbarUsageMode === 'codex' ? '/api/codex-usage' : '/api/claude-usage';
+  try {
+    var res = await fetch(apiUrl, { headers: _authHeaders() });
+    if (!res.ok) return;
+    var d = await res.json();
+    if (d.error) return;
+    var usageHtml = _mobileUsageText(d);
+    el.innerHTML = usageHtml;
+    el.style.display = 'inline-flex';
+    var _mob = document.getElementById('mobile-token-bar');
+    if (_mob) {
+      // Remove old usage text if any (avoid duplicates on re-render)
+      var _old = _mob.querySelector('.mob-usage');
+      if (_old) _old.remove();
+      // Wrap in a span so we can identify it
+      _mob.insertAdjacentHTML('beforeend', '<span class="mob-usage">' + usageHtml + '</span>');
+      _mob.classList.add('visible');
+    }
+  } catch(e) {}
 }
 
 async function _copyTmuxBuffer() {
@@ -1081,6 +1161,11 @@ function showPlaceholder() {
   var switcher = document.getElementById('pane-switcher');
   if (switcher) switcher.classList.remove('open');
   _disconnectTermWs();
+  window._topbarUsageMode = 'claude';
+  var _tbu = document.getElementById('topbar-usage');
+  if (_tbu) _tbu.style.display = '';
+  var _tlu = document.getElementById('toolbar-usage');
+  if (_tlu) _tlu.innerHTML = '';
   document.getElementById('term-placeholder').style.display = '';
   document.getElementById('dev-page').classList.remove('detail-open');
   document.body.classList.remove('detail-locked');
@@ -1256,6 +1341,41 @@ function _ansiToHtml(raw) {
     _i = _j;
   }
   text = _out;
+  // 2.8. Strip Claude Code status bar and ASCII pet.
+  //      Layout from bottom: empty, ⏵⏵ status, ───border, ❯ prompt, ───border, pet art, n____n
+  //      Strategy: find ❯ prompt, remove junk below AND above it, keep ❯.
+  var _lines = text.split('\n');
+  function _isJunk(line) {
+    var r = line.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
+    var p = r.trim();
+    if (!p) return true;
+    if ((r.match(/\u2500/g) || []).length > 10) return true;
+    if (/bypass permissions|shift\+tab|esc to interrupt|to manage/i.test(p)) return true;
+    if (/^[⏵⏴►▶]/.test(p)) return true;
+    if (p.length < 40 && /^[\s|_n\/\\(){}\[\]×·├┤┬┴┼\u2800-\u28FF\-.]+$/.test(p)) return true;
+    if (p.length < 30 && /^[A-Z][a-z]+(-[A-Z][a-z]+)?$/.test(p)) return true;
+    return false;
+  }
+  // Find last ❯ prompt in bottom 30 lines
+  var _promptIdx = -1;
+  for (var _k = _lines.length - 1; _k >= 0 && _k >= _lines.length - 30; _k--) {
+    var _pl = _lines[_k].replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').trim();
+    if (/^❯/.test(_pl)) { _promptIdx = _k; break; }
+  }
+  if (_promptIdx >= 0) {
+    // Trim pet art from ❯ line: strip ANSI, find ❯ + user input, discard trailing junk
+    var _rawPrompt = _lines[_promptIdx].replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
+    var _pm = _rawPrompt.match(/^(❯[^|_\n]*?)\s{5,}/);
+    var _promptLine = _pm ? _pm[1].trimEnd() : _rawPrompt.replace(/\s{10,}.*$/, '').trimEnd();
+    // Remove junk below ❯
+    var _below = _promptIdx + 1;
+    while (_below < _lines.length && _isJunk(_lines[_below])) _below++;
+    // Remove junk above ❯ (pet art, borders)
+    var _above = _promptIdx - 1;
+    while (_above >= 0 && _above >= _promptIdx - 15 && _isJunk(_lines[_above])) _above--;
+    _lines = _lines.slice(0, _above + 1).concat(['\x00HR\x00', _promptLine]).concat(_lines.slice(_below));
+  }
+  text = _lines.join('\n');
   // 3. Collapse consecutive blank lines and trim trailing blanks
   text = text.replace(/\n{3,}/g, '\n\n').replace(/\n+$/, '\n');
   // Split on SGR sequences
@@ -1329,8 +1449,6 @@ function _connectTermWs(target) {
       var _lines = output.textContent.split('\n').filter(function(l) { return l.trim(); });
       _paneSnapshots[_currentTarget] = _lines.slice(-20).join('\n');
     }
-    // Update state dot from WebSocket data
-    if (_currentTarget) _onStateChange(_currentTarget, _detectState(_stripAnsi(e.data)));
   };
 
   _termWs.onclose = function() {
@@ -1574,14 +1692,15 @@ function _openTabSwitcher() {
   var rows = document.querySelectorAll('.term-pane-row');
   if (!rows.length) return;
   var html = '';
-  var dotColors = { idle:'var(--green)', running:'var(--green)', confirm:'var(--orange)', error:'var(--red)', done:'var(--green)' };
   var i = 0;
   rows.forEach(function(row) {
     var target = row.dataset.target;
     var cmd = row.dataset.cmd || '';
     var isCurrent = (_currentTarget === target);
-    var st = _paneState[target] || 'inactive';
-    var dotColor = dotColors[st] || 'var(--muted)';
+    var _tool = _paneToolMap[target] || row.dataset.tool || '';
+    var _dotHtml = _tool === 'codex' ? '<span class="tab-card-dot" style="background:#22c55e"></span>'
+      : _tool === 'claude' ? '<span class="tab-card-dot" style="background:#818cf8"></span>'
+      : '<span class="tab-card-dot" style="background:var(--border)"></span>';
     var nameEl = row.querySelector('.term-pane-name-text');
     var name = (nameEl ? nameEl.textContent : target).replace(/^.*\//, '');
     var snap = _paneSnapshots[target];
@@ -1592,7 +1711,7 @@ function _openTabSwitcher() {
       + ' data-target="' + escHtml(target) + '"'
       + ' data-cmd="' + escHtml(cmd) + '">'
       + '<div class="tab-card-header">'
-      + '<span class="tab-card-dot" style="background:' + dotColor + '"></span>'
+      + _dotHtml
       + '<span class="tab-card-name">' + escHtml(name) + '</span>'
       + '<button class="tab-card-close" onclick="event.stopPropagation();_killTabCard(this)" title="关闭">&times;</button>'
       + '</div>'
@@ -1691,13 +1810,12 @@ async function _togglePaneSwitcher() {
     for (var i = 0; i < panes.length; i++) {
       var p = panes[i];
       var isCurrent = (_currentTarget === p.target);
-      var st = _paneState[p.target] || 'inactive';
-      var dotColor = { idle:'var(--green)', running:'var(--green)', confirm:'var(--orange)', error:'var(--red)', done:'var(--green)' }[st] || 'var(--border)';
+      var _dc = p.tool === 'codex' ? '#22c55e' : p.tool === 'claude' ? '#818cf8' : 'var(--border)';
       html += '<div class="pane-switcher-item' + (isCurrent ? ' current' : '') + '"'
         + ' data-target="' + escHtml(p.target) + '"'
         + ' data-cmd="' + escHtml(p.command || '') + '">'
         + '<div class="pane-switcher-name">'
-        + '<span class="pane-switcher-dot" style="background:' + dotColor + '"></span>'
+        + '<span class="pane-switcher-dot" style="background:' + _dc + '"></span>'
         + escHtml(p.label || p.target) + '</div>'
         + '<div class="pane-switcher-sub">' + escHtml(p.project_name || p.command || '') + '</div>'
         + '</div>';
@@ -1920,7 +2038,6 @@ async function init() {
   // ttyd iframe is loaded lazily on first pane click (avoids basic-auth dialog on page load)
   await loadPanes();
   setInterval(loadPanes, 5000);
-  _bgPoll();
 }
 init();
 """
@@ -1985,12 +2102,17 @@ init();
           <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
         </svg>
       </button>
+      <span class="toolbar-spacer"></span>
+      <span class="toolbar-tokens" id="toolbar-tokens"></span>
+      <span class="toolbar-usage" id="toolbar-usage"></span>
     </div>
     <div class="term-iframe-wrap" id="term-iframe-wrap">
       <div class="term-touch-overlay" id="term-touch-overlay"></div>
       <div class="term-scroll-badge" id="term-scroll-badge">滚动模式</div>
       <iframe id="ttyd-frame" allow="clipboard-read; clipboard-write"></iframe>
     </div>
+    <!-- Mobile token bar -->
+    <div class="mobile-token-bar" id="mobile-token-bar"></div>
     <!-- Mobile: independent terminal output via WebSocket (ANSI-rendered) -->
     <div class="mobile-term-output" id="mobile-term-output"></div>
     <!-- Mobile input bar: bypasses iframe input issues via tmux send-keys -->
@@ -2039,6 +2161,7 @@ init();
 """
         + settings_overlay_html() + "\n\n"
         + "<script>\n"
+        + "window._topbarUsageMode = null; // dev page manages usage in toolbar\n"
         + topbar_js() + "\n"
         + page_js
         + "</script>\n</body>\n</html>\n"
