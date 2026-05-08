@@ -365,7 +365,8 @@ function editKey(id) {
       _editingKeyId = id;
       document.getElementById('kf-name').value = k.name || '';
       document.getElementById('kf-category').value = k.category || 'other';
-      document.getElementById('kf-key').value = k.key || '';
+      document.getElementById('kf-key').value = '';
+      document.getElementById('kf-key').placeholder = k.key + '（留空则不修改）';
       document.getElementById('kf-note').value = k.note || '';
       document.getElementById('key-form-title').textContent = '编辑密钥';
       var form = document.getElementById('key-form');
@@ -378,12 +379,13 @@ function saveKey() {
   var category = document.getElementById('kf-category').value;
   var key = document.getElementById('kf-key').value.trim();
   var note = document.getElementById('kf-note').value.trim();
-  if (!name || !key) { showToast('名称和密钥为必填项', true); return; }
+  if (!name) { showToast('请输入名称', true); return; }
+  if (!_editingKeyId && !key) { showToast('请输入密钥', true); return; }
   var url = _editingKeyId ? '/api/settings/keys/' + _editingKeyId : '/api/settings/keys';
   var method = _editingKeyId ? 'PUT' : 'POST';
   fetch(url, {
     method: method, headers: Object.assign({'Content-Type':'application/json'}, _authHeaders()),
-    body: JSON.stringify({name:name, category:category, key:key, note:note})
+    body: JSON.stringify(Object.assign({name:name, category:category, note:note}, key ? {key:key} : {}))
   })
     .then(function(r) {
       if (r.status === 401) { openLoginModal(function() { saveKey(); }); return null; }
