@@ -5,6 +5,7 @@ import ipaddress
 import re
 import shutil
 import subprocess
+import uuid
 import typer
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect, UploadFile, File
@@ -1075,6 +1076,131 @@ def claude_usage(request: Request):
     }
 
 
+@api.get("/api/codex-stats")
+def codex_stats(request: Request):
+    """Return global Codex usage + per-project breakdown (mapped to Mira project names)."""
+    if not _is_admin(request):
+        raise HTTPException(status_code=401, detail="需要管理员权限")
+    from vibe.collectors.codex_sessions import (
+        collect_codex_activity,
+        _all_jsonl_files,
+        _get_session_workdir,
+        _parse_session,
+    )
+    from pathlib import Path as _Path
+
+    data = collect_codex_activity(str(Path.home()))
+
+    # Build workdir → project name mapping from discovered projects
+    proj_path_map: dict[str, str] = {}  # lowercased project path → display name
+    for p in get_all_projects():
+        p_path = (p.get("path") or "").rstrip("/").lower()
+        if p_path:
+            proj_path_map[p_path] = p.get("name") or p.get("id", p_path.rsplit("/", 1)[-1])
+        # Also index by parent-less basename (for Codex workdirs like /Users/chao/projects/echo-chao)
+        p_base = p_path.rsplit("/", 1)[-1] if "/" in p_path else ""
+        if p_base and p_base not in proj_path_map:
+            proj_path_map[p_base] = p.get("name") or p.get("id", p_base)
+
+    # Manual fallback for Codex workdirs not in Mira's scan scope
+    # Maps: Codex workdir basename → Mira project name
+    _MANUAL_ALIAS: dict[str, str] = {
+        "echo-chao": "minion-agent",
+        "simulacra": "minion-agent",
+        "feishu-coo": "minion-agent",
+        "feishu-ai-assistant": "minion-agent",
+        "vibe-cli": "Mira",
+        "ai-investment-dashboard": "Argus",
+    }
+    proj_path_map.update({k: v for k, v in _MANUAL_ALIAS.items() if k not in proj_path_map})
+    _KNOWN_WORKDIR_PATHS = {
+        "/users/chao/ai-investment-dashboard": "Argus",
+    }
+    proj_path_map.update(_KNOWN_WORKDIR_PATHS)
+
+    def _match_workdir_to_project(wd: str) -> str | None:
+        """Find the Mira project that this workdir belongs to."""
+        wd_lower = wd.rstrip("/").lower()
+        # Exact path match
+        for p_path, p_name in proj_path_map.items():
+            if wd_lower == p_path or wd_lower.startswith(p_path + "/"):
+                return p_name
+            if p_path.startswith(wd_lower + "/"):
+                return p_name
+        # Basename match
+        base = wd_lower.rsplit("/", 1)[-1]
+        return proj_path_map.get(base)
+
+    # Per-project breakdown: group sessions by Mira project name
+    proj_stats: dict[str, dict] = {}
+    unclassified = {"sessions": 0, "input": 0, "output": 0, "cached": 0}
+
+    for f in _all_jsonl_files():
+        wd = _get_session_workdir(f)
+        parsed = _parse_session(f)
+        tok = parsed.get("tokens", {})
+        inp = tok.get("input", 0)
+        out = tok.get("output", 0)
+        cached = tok.get("cached_input", 0)
+
+        if wd:
+            proj_name = _match_workdir_to_project(wd)
+            if proj_name is None:
+                proj_name = wd.rsplit("/", 1)[-1]  # fallback to raw basename
+            if proj_name not in proj_stats:
+                proj_stats[proj_name] = {"sessions": 0, "input": 0, "output": 0, "cached": 0}
+            proj_stats[proj_name]["sessions"] += 1
+            proj_stats[proj_name]["input"] += inp
+            proj_stats[proj_name]["output"] += out
+            proj_stats[proj_name]["cached"] += cached
+        else:
+            unclassified["sessions"] += 1
+            unclassified["input"] += inp
+            unclassified["output"] += out
+            unclassified["cached"] += cached
+
+    # Build heatmap: daily session count for last 365 days
+    from datetime import date as _date, timedelta
+    day_counts: dict[str, int] = {}
+    for f in _all_jsonl_files():
+        try:
+            mtime = f.stat().st_mtime
+            from datetime import datetime as _dt
+            d = _dt.fromtimestamp(mtime).strftime("%Y-%m-%d")
+            day_counts[d] = day_counts.get(d, 0) + 1
+        except OSError:
+            pass
+
+    heatmap: dict[str, dict] = {}
+    for i in range(365):
+        d = (_date.today() - timedelta(days=364 - i)).isoformat()
+        cnt = day_counts.get(d, 0)
+        if cnt > 0:
+            heatmap[d] = {"hours": float(cnt), "sessions": cnt}
+
+    # Per-project cost for top-5 trend
+    cx_price_in = 15.0 / 1e6
+    cx_price_cached = 7.5 / 1e6
+    cx_price_out = 75.0 / 1e6
+    proj_trend = []
+    for pname, ps in proj_stats.items():
+        non_cached = max(ps["input"] - ps["cached"], 0)
+        cost = non_cached * cx_price_in + ps["cached"] * cx_price_cached + ps["output"] * cx_price_out
+        proj_trend.append({
+            "project_name": pname,
+            "total_cost_usd": round(cost, 2),
+            "sessions": ps["sessions"],
+        })
+    proj_trend.sort(key=lambda x: -x["total_cost_usd"])
+
+    if isinstance(data, dict):
+        data["projects"] = proj_stats
+        data["unclassified"] = unclassified
+        data["heatmap"] = heatmap
+        data["project_trend"] = proj_trend[:10]
+    return data if data else {}
+
+
 @api.get("/api/base-services")
 def list_base_services(request: Request):
     """Check status of host-level infrastructure services defined in vibe.yaml."""
@@ -1247,6 +1373,201 @@ def list_hosts(request: Request):
 
 # ── Settings (API keys stored in vibe.yaml) ────────────────────────────────────
 _SETTINGS_KEYS = ["openrouter_api_key", "deepseek_api_key", "kimi_api_key", "gemini_api_key", "doubao_api_key", "doubao_access_key", "doubao_secret_key"]
+
+
+def _mask_key(val: str) -> str:
+    if not val:
+        return ""
+    if len(val) <= 6:
+        return "****"
+    return val[:6] + "****"
+
+
+def _read_vibe_yaml() -> tuple[Path, dict]:
+    import yaml
+    cfg_path = Path(__file__).parent.parent / "vibe.yaml"
+    data = {}
+    if cfg_path.exists():
+        data = yaml.safe_load(cfg_path.read_text()) or {}
+    return cfg_path, data
+
+
+def _write_vibe_yaml(cfg_path: Path, data: dict) -> None:
+    import yaml
+    cfg_path.write_text(yaml.dump(data, allow_unicode=True, default_flow_style=False))
+    from .config import invalidate_config_cache
+    invalidate_config_cache()
+
+
+# ── Keys Vault CRUD ──────────────────────────────────────────────────────────
+
+@api.get("/api/settings/keys")
+def list_keys(request: Request):
+    """列出所有密钥（值脱敏）。"""
+    if not _is_admin(request):
+        raise HTTPException(status_code=401, detail="需要管理员权限")
+    from .config import load_global_config
+    cfg = load_global_config()
+    keys = cfg.get("keys", [])
+    return {"keys": [{
+        "id": k.get("id", ""),
+        "name": k.get("name", ""),
+        "category": k.get("category", "other"),
+        "key": _mask_key(k.get("key", "")),
+        "note": k.get("note", ""),
+    } for k in keys]}
+
+
+@api.post("/api/settings/keys")
+def add_key(request: Request, body: dict):
+    """添加新密钥。"""
+    if not _is_admin(request):
+        raise HTTPException(status_code=401, detail="需要管理员权限")
+    name = (body.get("name") or "").strip()
+    key_val = (body.get("key") or "").strip()
+    if not name or not key_val:
+        raise HTTPException(status_code=400, detail="name 和 key 为必填项")
+    category = (body.get("category") or "other").strip()
+    note = (body.get("note") or "").strip()
+    key_id = uuid.uuid4().hex[:8]
+    cfg_path, data = _read_vibe_yaml()
+    keys = data.get("keys", [])
+    keys.append({"id": key_id, "name": name, "category": category, "key": key_val, "note": note})
+    data["keys"] = keys
+    _write_vibe_yaml(cfg_path, data)
+    return {"ok": True, "id": key_id}
+
+
+@api.put("/api/settings/keys/{key_id}")
+def update_key(request: Request, key_id: str, body: dict):
+    """更新密钥。"""
+    if not _is_admin(request):
+        raise HTTPException(status_code=401, detail="需要管理员权限")
+    cfg_path, data = _read_vibe_yaml()
+    keys = data.get("keys", [])
+    target = None
+    for k in keys:
+        if k.get("id") == key_id:
+            target = k
+            break
+    if not target:
+        raise HTTPException(status_code=404, detail="未找到该密钥")
+    if "name" in body:
+        target["name"] = (body["name"] or "").strip()
+    if "category" in body:
+        target["category"] = (body["category"] or "other").strip()
+    if "key" in body:
+        v = (body["key"] or "").strip()
+        if v and not v.endswith("****"):
+            target["key"] = v
+    if "note" in body:
+        target["note"] = (body["note"] or "").strip()
+    data["keys"] = keys
+    _write_vibe_yaml(cfg_path, data)
+    return {"ok": True}
+
+
+@api.delete("/api/settings/keys/{key_id}")
+def delete_key(request: Request, key_id: str):
+    """删除密钥。"""
+    if not _is_admin(request):
+        raise HTTPException(status_code=401, detail="需要管理员权限")
+    cfg_path, data = _read_vibe_yaml()
+    keys = data.get("keys", [])
+    new_keys = [k for k in keys if k.get("id") != key_id]
+    if len(new_keys) == len(keys):
+        raise HTTPException(status_code=404, detail="未找到该密钥")
+    data["keys"] = new_keys
+    _write_vibe_yaml(cfg_path, data)
+    return {"ok": True}
+
+
+# ── Project Config API ───────────────────────────────────────────────────────
+
+@api.get("/api/settings/projects/{project_id}/config")
+def get_project_config(request: Request, project_id: str):
+    """读取项目 vibe.yaml 配置。"""
+    if not _is_admin(request):
+        raise HTTPException(status_code=401, detail="需要管理员权限")
+    projects = get_all_projects()
+    proj = None
+    for p in projects:
+        if p.get("id") == project_id or p.get("name") == project_id:
+            proj = p
+            break
+    if not proj:
+        raise HTTPException(status_code=404, detail="未找到该项目")
+    import yaml
+    proj_path = Path(proj["path"])
+    vibe_yaml = proj_path / "vibe.yaml"
+    data = {}
+    if vibe_yaml.exists():
+        data = yaml.safe_load(vibe_yaml.read_text()) or {}
+    return {
+        "name": data.get("name", proj.get("name", "")),
+        "description": data.get("description", ""),
+        "domain": data.get("domain", ""),
+        "status": data.get("status", ""),
+        "service": data.get("service", ""),
+        "deploy": data.get("deploy", ""),
+        "bound_keys": data.get("bound_keys", []),
+    }
+
+
+@api.put("/api/settings/projects/{project_id}/config")
+def save_project_config(request: Request, project_id: str, body: dict):
+    """保存项目 vibe.yaml 配置。"""
+    if not _is_admin(request):
+        raise HTTPException(status_code=401, detail="需要管理员权限")
+    projects = get_all_projects()
+    proj = None
+    for p in projects:
+        if p.get("id") == project_id or p.get("name") == project_id:
+            proj = p
+            break
+    if not proj:
+        raise HTTPException(status_code=404, detail="未找到该项目")
+    import yaml
+    proj_path = Path(proj["path"])
+    vibe_yaml = proj_path / "vibe.yaml"
+    data = {}
+    if vibe_yaml.exists():
+        data = yaml.safe_load(vibe_yaml.read_text()) or {}
+    for field in ("name", "description", "domain", "status", "service", "deploy", "bound_keys"):
+        if field in body:
+            data[field] = body[field]
+    vibe_yaml.write_text(yaml.dump(data, allow_unicode=True, default_flow_style=False))
+    return {"ok": True}
+
+
+# ── System Lists API ─────────────────────────────────────────────────────────
+
+@api.get("/api/settings/system-lists")
+def get_system_lists(request: Request):
+    """返回扫描目录和排除列表。"""
+    if not _is_admin(request):
+        raise HTTPException(status_code=401, detail="需要管理员权限")
+    from .config import load_global_config
+    cfg = load_global_config()
+    return {
+        "scan_dirs": cfg.get("scan_dirs", []),
+        "exclude": cfg.get("exclude", []),
+    }
+
+
+@api.post("/api/settings/system-lists")
+def save_system_lists(request: Request, body: dict):
+    """保存扫描目录和排除列表到 vibe.yaml。"""
+    if not _is_admin(request):
+        raise HTTPException(status_code=401, detail="需要管理员权限")
+    cfg_path, data = _read_vibe_yaml()
+    if "scan_dirs" in body:
+        data["scan_dirs"] = body["scan_dirs"]
+    if "exclude" in body:
+        data["exclude"] = body["exclude"]
+    _write_vibe_yaml(cfg_path, data)
+    return {"ok": True}
+
 
 @api.get("/api/settings")
 def get_settings(request: Request):

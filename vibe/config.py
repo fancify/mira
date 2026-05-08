@@ -72,6 +72,7 @@ def load_global_config(config_path: Optional[Path] = None) -> dict:
         "admin_password": data.get("admin_password"),
         "notification_sound": data.get("notification_sound", "Pop"),
         "remote_hosts": data.get("remote_hosts", []),
+        "keys": data.get("keys", []),
     }
     _config_cache = result
     _config_cache_mtimes = current_mtimes
