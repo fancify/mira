@@ -1547,17 +1547,12 @@ function _sendOk() {
   _showToast('已确认', 1500);
 }
 function _clearInput() {
-  var input = document.getElementById('mobile-cmd-input');
-  if (input) { input.value = ''; input.focus(); }
+  _sendToTerminal('\x15');  // Ctrl+U: clear terminal input line
 }
 function _sendNum(sel) {
   var v = sel.value;
   if (!v) return;
-  var input = document.getElementById('mobile-cmd-input');
-  if (input) {
-    input.value = (input.value ? input.value : '') + v;
-    input.focus();
-  }
+  _sendToTerminal(v);  // type digit into terminal without Enter
   sel.value = '';
 }
 function _onWsDotClick() {
