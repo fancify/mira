@@ -1000,6 +1000,18 @@ async function selectPane(target, cmd) {
   var tool = _paneToolMap[target] || (paneRow ? paneRow.dataset.tool : '') || '';
   await _loadPaneTokens(target, tool);
   _updateTopbarUsage(tool);
+  _startTokenRefresh(target, tool);
+}
+
+var _tokenRefreshTimer = null;
+function _startTokenRefresh(target, tool) {
+  if (_tokenRefreshTimer) clearInterval(_tokenRefreshTimer);
+  _tokenRefreshTimer = setInterval(function() {
+    if (_currentTarget !== target) { clearInterval(_tokenRefreshTimer); return; }
+    var t = _paneToolMap[target] || tool;
+    _loadPaneTokens(target, t);
+    // Usage refreshes less often — only when mode switches, no need to poll
+  }, 30000);
 }
 
 function _setMobileTokens(html) {
@@ -1178,6 +1190,7 @@ function showPlaceholder() {
   var switcher = document.getElementById('pane-switcher');
   if (switcher) switcher.classList.remove('open');
   _disconnectTermWs();
+  if (_tokenRefreshTimer) { clearInterval(_tokenRefreshTimer); _tokenRefreshTimer = null; }
   window._topbarUsageMode = 'claude';
   var _tbu = document.getElementById('topbar-usage');
   if (_tbu) _tbu.style.display = '';
