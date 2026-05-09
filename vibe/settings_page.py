@@ -215,6 +215,35 @@ def render_settings_page() -> str:
       </div>
     </div>
   </div>
+  <style>
+    .proj-subtabs {{ display: flex; border-bottom: 1px solid var(--border); margin-bottom: 14px; }}
+    .proj-subtab {{ padding: 8px 14px; font-size: 12px; font-family: var(--mono); color: var(--sub); background: none; border: none; cursor: pointer; border-bottom: 2px solid transparent; transition: all .15s; }}
+    .proj-subtab.active {{ color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }}
+    .proj-subtab:hover {{ color: var(--text); }}
+    .proj-subpanel {{ display: none; }}
+    .proj-subpanel.active {{ display: block; }}
+    .env-table {{ width: 100%; border-collapse: collapse; font-size: 12px; }}
+    .env-table th {{ text-align: left; font-size: 10px; color: var(--muted); padding: 4px 8px; border-bottom: 1px solid var(--border); text-transform: uppercase; letter-spacing: 1px; }}
+    .env-table td {{ padding: 4px 8px; border-bottom: 1px solid rgba(255,255,255,.03); vertical-align: middle; }}
+    .env-table .env-key {{ font-weight: 600; color: var(--text); white-space: nowrap; width: 200px; }}
+    .env-table .env-val {{ font-family: var(--mono); }}
+    .env-table .env-val input {{ width: 100%; background: rgba(0,0,0,.2); border: 1px solid var(--border); border-radius: 4px; padding: 4px 8px; font-size: 11px; font-family: var(--mono); color: var(--text); }}
+    .env-table .env-act {{ width: 60px; text-align: right; }}
+    .env-eye {{ background: none; border: none; color: var(--sub); cursor: pointer; font-size: 12px; padding: 2px 4px; }}
+    .env-eye:hover {{ color: var(--accent); }}
+    .env-del {{ background: none; border: none; color: var(--sub); cursor: pointer; font-size: 14px; padding: 2px 4px; }}
+    .env-del:hover {{ color: #e55; }}
+    .env-file-section {{ margin-bottom: 16px; }}
+    .env-file-header {{ font-size: 12px; font-weight: 600; color: var(--text); padding: 8px 0 6px; display: flex; align-items: center; gap: 8px; cursor: pointer; }}
+    .env-file-header:hover {{ color: var(--accent); }}
+    .yaml-editor {{ width: 100%; min-height: 200px; background: rgba(0,0,0,.2); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px; font-size: 11px; font-family: var(--mono); color: var(--text); line-height: 1.6; resize: vertical; tab-size: 2; }}
+    .cfg-file-section {{ margin-bottom: 16px; }}
+    .cfg-file-header {{ font-size: 12px; font-weight: 600; color: var(--text); padding: 8px 0 6px; display: flex; align-items: center; gap: 8px; }}
+    .cfg-file-header .badge {{ font-size: 9px; color: var(--muted); background: rgba(255,255,255,.05); padding: 1px 6px; border-radius: 3px; }}
+    .cfg-file-editor {{ width: 100%; min-height: 150px; background: rgba(0,0,0,.2); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px; font-size: 11px; font-family: var(--mono); color: var(--text); line-height: 1.6; resize: vertical; tab-size: 2; }}
+    .adv-toggle {{ font-size: 11px; color: var(--sub); cursor: pointer; background: none; border: 1px solid var(--border); padding: 4px 12px; border-radius: var(--radius-sm); font-family: var(--mono); margin-top: 12px; transition: all .15s; }}
+    .adv-toggle:hover {{ border-color: var(--accent); color: var(--accent); }}
+  </style>
 
   <!-- ── Tab: System ── -->
   <div class="tab-panel" id="tab-system">
@@ -455,43 +484,73 @@ function loadProjects() {
     .catch(function() {});
 }
 
+var _projSubTab = 'basic';
+var _envData = [];
+var _cfgFiles = [];
+var _envRevealed = {};  // filename:key -> true
+
 function selectProject(id) {
   _selectedProjectId = id;
-  // highlight in sidebar
+  _projSubTab = 'basic';
+  _envRevealed = {};
   var items = document.querySelectorAll('.proj-item');
   for (var i = 0; i < items.length; i++) items[i].classList.remove('active');
   for (var i = 0; i < items.length; i++) {
     if (items[i].getAttribute('onclick').indexOf(id) !== -1) items[i].classList.add('active');
   }
+  // Load config
   fetch('/api/settings/projects/' + id + '/config', {headers: _authHeaders()})
-    .then(function(r) {
-      if (r.status === 401) { openLoginModal(function() { selectProject(id); }); return null; }
-      return r.json();
-    })
-    .then(function(data) {
-      if (!data) return;
-      _projConfig = data;
-      renderProjectEditor();
-    });
+    .then(function(r) { return r.status === 401 ? (openLoginModal(function(){selectProject(id)}), null) : r.json(); })
+    .then(function(data) { if (data) { _projConfig = data; _renderProjectShell(); _renderBasicTab(); } });
 }
 
-function renderProjectEditor() {
-  var d = _projConfig;
+function _renderProjectShell() {
   var el = document.getElementById('proj-editor');
   el.className = 'proj-editor';
+  el.innerHTML =
+    '<div class="proj-subtabs">' +
+    '<button class="proj-subtab' + (_projSubTab==='basic'?' active':'') + '" onclick="_switchProjTab(\'basic\')">基础配置</button>' +
+    '<button class="proj-subtab' + (_projSubTab==='env'?' active':'') + '" onclick="_switchProjTab(\'env\')">环境变量</button>' +
+    '<button class="proj-subtab' + (_projSubTab==='files'?' active':'') + '" onclick="_switchProjTab(\'files\')">配置文件</button>' +
+    '</div>' +
+    '<div class="proj-subpanel' + (_projSubTab==='basic'?' active':'') + '" id="psub-basic"></div>' +
+    '<div class="proj-subpanel' + (_projSubTab==='env'?' active':'') + '" id="psub-env"></div>' +
+    '<div class="proj-subpanel' + (_projSubTab==='files'?' active':'') + '" id="psub-files"></div>';
+}
+
+function _switchProjTab(tab) {
+  _projSubTab = tab;
+  document.querySelectorAll('.proj-subtab').forEach(function(b) { b.classList.toggle('active', b.textContent.indexOf(tab==='basic'?'基础':tab==='env'?'环境':'配置')>=0); });
+  document.querySelectorAll('.proj-subpanel').forEach(function(p) { p.classList.remove('active'); });
+  var panel = document.getElementById('psub-' + tab);
+  if (panel) panel.classList.add('active');
+  if (tab === 'basic') _renderBasicTab();
+  else if (tab === 'env') _loadEnvTab();
+  else if (tab === 'files') _loadFilesTab();
+}
+
+// ── Sub-tab: Basic Config ──
+function _renderBasicTab() {
+  var d = _projConfig;
+  var el = document.getElementById('psub-basic');
+  if (!el) return;
+  var svc = d.service || {};
+  var svcPort = typeof svc === 'object' ? (svc.port || '') : svc;
+  var svcHealth = typeof svc === 'object' ? (svc.health_path || '') : '';
+  var svcToken = typeof svc === 'object' ? (svc.health_token || '') : '';
   var boundHtml = '';
   var bk = d.bound_keys || [];
   for (var i = 0; i < bk.length; i++) {
-    boundHtml += '<span class="bound-chip">' + _esc(bk[i]) +
-      ' <span class="remove" onclick="unbindKey(\'' + _esc(bk[i]) + '\')">&times;</span></span>';
+    boundHtml += '<span class="bound-chip">' + _esc(bk[i]) + ' <span class="remove" onclick="unbindKey(\'' + _esc(bk[i]) + '\')">&times;</span></span>';
   }
   el.innerHTML =
     '<div class="cfg-row"><label>名称</label><input class="cfg-input" id="pe-name" value="' + _esc(d.name || '') + '"></div>' +
     '<div class="cfg-row"><label>描述</label><textarea class="cfg-input" id="pe-desc">' + _esc(d.description || '') + '</textarea></div>' +
-    '<div class="cfg-row"><label>领域</label><input class="cfg-input" id="pe-domain" value="' + _esc(d.domain || '') + '"></div>' +
-    '<div class="cfg-row"><label>状态</label><input class="cfg-input" id="pe-status" value="' + _esc(d.status || '') + '"></div>' +
-    '<div class="cfg-row"><label>服务</label><input class="cfg-input" id="pe-service" value="' + _esc(d.service || '') + '"></div>' +
-    '<div class="cfg-row"><label>部署</label><input class="cfg-input" id="pe-deploy" value="' + _esc(d.deploy || '') + '"></div>' +
+    '<div class="cfg-row"><label>域名</label><input class="cfg-input" id="pe-domain" value="' + _esc(d.domain || '') + '"></div>' +
+    '<div class="cfg-row"><label>状态</label><input class="cfg-input" id="pe-status" value="' + _esc(d.status || '') + '" placeholder="active / paused / done"></div>' +
+    '<div class="cfg-row"><label>端口</label><input class="cfg-input" id="pe-port" value="' + _esc(String(svcPort)) + '" style="max-width:100px" placeholder="8000"></div>' +
+    '<div class="cfg-row"><label>健康检查</label><input class="cfg-input" id="pe-health" value="' + _esc(svcHealth) + '" placeholder="/healthz"></div>' +
+    '<div class="cfg-row"><label>健康 Token</label><input class="cfg-input" id="pe-htoken" value="' + _esc(svcToken) + '" placeholder="ok"></div>' +
     '<div class="cfg-row"><label>绑定密钥</label><div style="flex:1">' +
     '<div class="bound-keys" id="bound-keys">' + boundHtml + '</div>' +
     '<button class="cfg-btn small" style="margin-top:8px" onclick="showKeyPicker()">+ 绑定密钥</button>' +
@@ -500,7 +559,16 @@ function renderProjectEditor() {
     '<select class="cfg-input" id="pick-key" style="max-width:200px"></select> ' +
     '<button class="cfg-btn small" onclick="bindSelectedKey()">确认</button>' +
     '</div>' +
-    '<div style="margin-top:14px"><button class="cfg-btn primary" onclick="saveProject()">保存项目配置</button></div>';
+    '<button class="adv-toggle" onclick="_toggleAdvYaml()">▾ 高级：编辑完整 YAML</button>' +
+    '<div id="adv-yaml-wrap" style="display:none;margin-top:10px">' +
+    '<textarea class="yaml-editor" id="pe-raw-yaml">' + _esc(d.raw_yaml || '') + '</textarea>' +
+    '</div>' +
+    '<div style="margin-top:14px"><button class="cfg-btn primary" onclick="saveProject()">保存</button></div>';
+}
+
+function _toggleAdvYaml() {
+  var wrap = document.getElementById('adv-yaml-wrap');
+  if (wrap) wrap.style.display = wrap.style.display === 'none' ? 'block' : 'none';
 }
 
 function showKeyPicker() {
@@ -511,55 +579,187 @@ function showKeyPicker() {
   var opts = '<option value="">-- 选择密钥 --</option>';
   for (var i = 0; i < _allKeys.length; i++) {
     var k = _allKeys[i];
-    if (bound.indexOf(k.id) === -1) {
-      opts += '<option value="' + _esc(k.id) + '">' + _esc(k.name) + '</option>';
-    }
+    if (bound.indexOf(k.id) === -1) opts += '<option value="' + _esc(k.id) + '">' + _esc(k.name) + '</option>';
   }
   sel.innerHTML = opts;
 }
 
 function bindSelectedKey() {
   var sel = document.getElementById('pick-key');
-  var kid = sel.value;
-  if (!kid) return;
+  if (!sel.value) return;
   if (!_projConfig.bound_keys) _projConfig.bound_keys = [];
-  if (_projConfig.bound_keys.indexOf(kid) === -1) {
-    _projConfig.bound_keys.push(kid);
-  }
-  renderProjectEditor();
+  if (_projConfig.bound_keys.indexOf(sel.value) === -1) _projConfig.bound_keys.push(sel.value);
+  _renderBasicTab();
 }
 
 function unbindKey(kid) {
   if (!_projConfig.bound_keys) return;
   _projConfig.bound_keys = _projConfig.bound_keys.filter(function(k) { return k !== kid; });
-  renderProjectEditor();
+  _renderBasicTab();
 }
 
 function saveProject() {
   if (!_selectedProjectId) return;
-  var body = {
-    name: document.getElementById('pe-name').value.trim(),
-    description: document.getElementById('pe-desc').value.trim(),
-    domain: document.getElementById('pe-domain').value.trim(),
-    status: document.getElementById('pe-status').value.trim(),
-    service: document.getElementById('pe-service').value.trim(),
-    deploy: document.getElementById('pe-deploy').value.trim(),
-    bound_keys: _projConfig.bound_keys || []
-  };
+  var rawYaml = document.getElementById('pe-raw-yaml');
+  var advVisible = document.getElementById('adv-yaml-wrap') && document.getElementById('adv-yaml-wrap').style.display !== 'none';
+  var body;
+  if (advVisible && rawYaml && rawYaml.value.trim()) {
+    body = { raw_yaml: rawYaml.value };
+  } else {
+    var svc = {};
+    var port = document.getElementById('pe-port').value.trim();
+    var health = document.getElementById('pe-health').value.trim();
+    var htoken = document.getElementById('pe-htoken').value.trim();
+    if (port) svc.port = parseInt(port) || port;
+    if (health) svc.health_path = health;
+    if (htoken) svc.health_token = htoken;
+    body = {
+      name: document.getElementById('pe-name').value.trim(),
+      description: document.getElementById('pe-desc').value.trim(),
+      domain: document.getElementById('pe-domain').value.trim(),
+      status: document.getElementById('pe-status').value.trim(),
+      service: Object.keys(svc).length ? svc : '',
+      bound_keys: _projConfig.bound_keys || []
+    };
+  }
   fetch('/api/settings/projects/' + _selectedProjectId + '/config', {
     method: 'PUT', headers: Object.assign({'Content-Type':'application/json'}, _authHeaders()),
     body: JSON.stringify(body)
-  })
-    .then(function(r) {
-      if (r.status === 401) { openLoginModal(saveProject); return null; }
-      return r.json();
-    })
+  }).then(function(r) { return r.json(); })
     .then(function(data) {
-      if (!data) return;
-      if (data.ok) showToast('项目配置已保存');
-      else showToast(data.detail || '保存失败', true);
-    })
-    .catch(function() { showToast('网络错误', true); });
+      if (data && data.ok) { showToast('配置已保存'); selectProject(_selectedProjectId); }
+      else showToast((data && data.detail) || '保存失败', true);
+    }).catch(function() { showToast('网络错误', true); });
+}
+
+// ── Sub-tab: Env Files ──
+function _loadEnvTab() {
+  var el = document.getElementById('psub-env');
+  if (!el) return;
+  el.innerHTML = '<div style="color:var(--muted);font-size:12px">加载中...</div>';
+  fetch('/api/settings/projects/' + _selectedProjectId + '/env-files?reveal=true', {headers: _authHeaders()})
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      _envData = data || [];
+      _renderEnvTab();
+    }).catch(function() { el.innerHTML = '<div style="color:#e55;font-size:12px">加载失败</div>'; });
+}
+
+function _renderEnvTab() {
+  var el = document.getElementById('psub-env');
+  if (!_envData.length) {
+    el.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:16px 0">此项目无 .env 文件</div>';
+    return;
+  }
+  var html = '';
+  for (var fi = 0; fi < _envData.length; fi++) {
+    var file = _envData[fi];
+    html += '<div class="env-file-section"><div class="env-file-header">' + _esc(file.filename) + '</div>';
+    html += '<table class="env-table"><thead><tr><th>Key</th><th>Value</th><th></th></tr></thead><tbody>';
+    for (var ei = 0; ei < file.entries.length; ei++) {
+      var e = file.entries[ei];
+      if (e.type === 'comment') continue;
+      var revKey = file.filename + ':' + e.key;
+      var revealed = !!_envRevealed[revKey];
+      html += '<tr><td class="env-key">' + _esc(e.key) + '</td>' +
+        '<td class="env-val"><input type="' + (revealed ? 'text' : 'password') + '" value="' + _esc(e.value) + '" data-file="' + fi + '" data-idx="' + ei + '" onchange="_envChanged(this)"></td>' +
+        '<td class="env-act">' +
+        '<button class="env-eye" onclick="_toggleEnvReveal(\'' + _esc(revKey) + '\',this)" title="显示/隐藏">' + (revealed ? '◉' : '○') + '</button>' +
+        '<button class="env-del" onclick="_delEnvRow(' + fi + ',' + ei + ')" title="删除">&times;</button>' +
+        '</td></tr>';
+    }
+    html += '</tbody></table>';
+    html += '<button class="cfg-btn small" style="margin-top:8px" onclick="_addEnvRow(' + fi + ')">+ 添加变量</button>';
+    html += '</div>';
+  }
+  html += '<div style="margin-top:14px"><button class="cfg-btn primary" onclick="_saveEnv()">保存环境变量</button></div>';
+  el.innerHTML = html;
+}
+
+function _envChanged(input) {
+  var fi = parseInt(input.dataset.file), ei = parseInt(input.dataset.idx);
+  _envData[fi].entries[ei].value = input.value;
+}
+
+function _toggleEnvReveal(revKey, btn) {
+  _envRevealed[revKey] = !_envRevealed[revKey];
+  _renderEnvTab();
+}
+
+function _delEnvRow(fi, ei) {
+  _envData[fi].entries.splice(ei, 1);
+  _renderEnvTab();
+}
+
+function _addEnvRow(fi) {
+  var key = prompt('变量名 (e.g. API_KEY):');
+  if (!key) return;
+  _envData[fi].entries.push({type: 'kv', key: key.trim(), value: ''});
+  _envRevealed[_envData[fi].filename + ':' + key.trim()] = true;
+  _renderEnvTab();
+}
+
+function _saveEnv() {
+  var promises = [];
+  for (var fi = 0; fi < _envData.length; fi++) {
+    var file = _envData[fi];
+    promises.push(fetch('/api/settings/projects/' + _selectedProjectId + '/env-files', {
+      method: 'PUT', headers: Object.assign({'Content-Type':'application/json'}, _authHeaders()),
+      body: JSON.stringify({filename: file.filename, entries: file.entries})
+    }));
+  }
+  Promise.all(promises).then(function() { showToast('环境变量已保存'); })
+    .catch(function() { showToast('保存失败', true); });
+}
+
+// ── Sub-tab: Config Files ──
+function _loadFilesTab() {
+  var el = document.getElementById('psub-files');
+  if (!el) return;
+  el.innerHTML = '<div style="color:var(--muted);font-size:12px">加载中...</div>';
+  fetch('/api/settings/projects/' + _selectedProjectId + '/config-files', {headers: _authHeaders()})
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      _cfgFiles = data || [];
+      _renderFilesTab();
+    }).catch(function() { el.innerHTML = '<div style="color:#e55;font-size:12px">加载失败</div>'; });
+}
+
+function _renderFilesTab() {
+  var el = document.getElementById('psub-files');
+  if (!_cfgFiles.length) {
+    el.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:16px 0">此项目无配置文件</div>';
+    return;
+  }
+  var html = '';
+  for (var i = 0; i < _cfgFiles.length; i++) {
+    var f = _cfgFiles[i];
+    var sizeStr = f.size < 1024 ? f.size + 'B' : (f.size / 1024).toFixed(1) + 'KB';
+    html += '<div class="cfg-file-section">' +
+      '<div class="cfg-file-header">' + _esc(f.filename) + ' <span class="badge">' + sizeStr + '</span></div>' +
+      '<textarea class="cfg-file-editor" data-idx="' + i + '" onchange="_cfgFileChanged(this)">' + _esc(f.content) + '</textarea>' +
+      '</div>';
+  }
+  html += '<div style="margin-top:14px"><button class="cfg-btn primary" onclick="_saveCfgFiles()">保存配置文件</button></div>';
+  el.innerHTML = html;
+}
+
+function _cfgFileChanged(ta) {
+  var idx = parseInt(ta.dataset.idx);
+  _cfgFiles[idx].content = ta.value;
+}
+
+function _saveCfgFiles() {
+  var promises = [];
+  for (var i = 0; i < _cfgFiles.length; i++) {
+    var f = _cfgFiles[i];
+    promises.push(fetch('/api/settings/projects/' + _selectedProjectId + '/config-files', {
+      method: 'PUT', headers: Object.assign({'Content-Type':'application/json'}, _authHeaders()),
+      body: JSON.stringify({filename: f.filename, content: f.content})
+    }));
+  }
+  Promise.all(promises).then(function() { showToast('配置文件已保存'); })
+    .catch(function() { showToast('保存失败', true); });
 }
 
 /* ══════════════════════════════════════════════════════════════════

@@ -1581,6 +1581,7 @@ def get_project_config(request: Request, project_id: str):
         "service": data.get("service", ""),
         "deploy": data.get("deploy", ""),
         "bound_keys": data.get("bound_keys", []),
+        "raw_yaml": vibe_yaml.read_text() if vibe_yaml.exists() else "",
     }
 
 
@@ -1600,13 +1601,132 @@ def save_project_config(request: Request, project_id: str, body: dict):
     import yaml
     proj_path = Path(proj["path"])
     vibe_yaml = proj_path / "vibe.yaml"
-    data = {}
-    if vibe_yaml.exists():
-        data = yaml.safe_load(vibe_yaml.read_text()) or {}
-    for field in ("name", "description", "domain", "status", "service", "deploy", "bound_keys"):
-        if field in body:
-            data[field] = body[field]
-    vibe_yaml.write_text(yaml.dump(data, allow_unicode=True, default_flow_style=False))
+    if "raw_yaml" in body and body["raw_yaml"].strip():
+        # Raw YAML mode: write directly
+        vibe_yaml.write_text(body["raw_yaml"])
+    else:
+        data = {}
+        if vibe_yaml.exists():
+            data = yaml.safe_load(vibe_yaml.read_text()) or {}
+        for field in ("name", "description", "domain", "status", "service", "deploy", "bound_keys"):
+            if field in body:
+                data[field] = body[field]
+        vibe_yaml.write_text(yaml.dump(data, allow_unicode=True, default_flow_style=False))
+    return {"ok": True}
+
+
+# ── Project Env Files API ────────────────────────────────────────────────────
+
+def _resolve_project_path(request: Request, project_id: str) -> Path:
+    if not _is_admin(request):
+        raise HTTPException(status_code=401, detail="需要管理员权限")
+    projects = get_all_projects()
+    proj = next((p for p in projects if p.get("id") == project_id or p.get("name") == project_id), None)
+    if not proj:
+        raise HTTPException(status_code=404, detail="未找到该项目")
+    return Path(proj["path"])
+
+_ENV_PATTERNS = {".env", ".env.local", ".env.production", ".env.development", ".env.staging", ".env.test"}
+_ENV_EXCLUDE = {".env.example", ".env.sample", ".env.template"}
+
+@api.get("/api/settings/projects/{project_id}/env-files")
+def get_env_files(request: Request, project_id: str, reveal: bool = False):
+    """List .env files with key-value pairs."""
+    proj_path = _resolve_project_path(request, project_id)
+    result = []
+    for f in sorted(proj_path.iterdir()):
+        if not f.is_file():
+            continue
+        if f.name not in _ENV_PATTERNS and not (f.name.startswith(".env.") and f.name not in _ENV_EXCLUDE):
+            continue
+        if f.name in _ENV_EXCLUDE:
+            continue
+        entries = []
+        for line in f.read_text(errors="replace").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#"):
+                entries.append({"type": "comment", "text": line})
+                continue
+            if "=" in line:
+                k, v = line.split("=", 1)
+                entries.append({"type": "kv", "key": k, "value": v if reveal else "••••••"})
+            else:
+                entries.append({"type": "comment", "text": line})
+        result.append({"filename": f.name, "entries": entries})
+    return result
+
+
+@api.put("/api/settings/projects/{project_id}/env-files")
+def save_env_file(request: Request, project_id: str, body: dict):
+    """Save a single .env file."""
+    proj_path = _resolve_project_path(request, project_id)
+    filename = body.get("filename", "")
+    if not filename or ".." in filename or "/" in filename:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+    entries = body.get("entries", [])
+    lines = []
+    for e in entries:
+        if e.get("type") == "comment":
+            lines.append(e.get("text", ""))
+        else:
+            lines.append(f"{e['key']}={e['value']}")
+    (proj_path / filename).write_text("\n".join(lines) + "\n")
+    return {"ok": True}
+
+
+# ── Project Config Files API ─────────────────────────────────────────────────
+
+_CONFIG_PATTERNS = {"config.json", "config.yaml", "config.yml", "config.toml",
+                    "settings.json", "settings.yaml", "settings.yml"}
+_CONFIG_EXCLUDE_DIRS = {"node_modules", ".venv", "__pycache__", ".git", "dist", "build", ".next"}
+_CONFIG_EXCLUDE_FILES = {"package.json", "tsconfig.json", "pyproject.toml", "Cargo.toml",
+                         "package-lock.json", "pnpm-lock.yaml", "yarn.lock"}
+
+@api.get("/api/settings/projects/{project_id}/config-files")
+def get_config_files(request: Request, project_id: str):
+    """List config files with content."""
+    proj_path = _resolve_project_path(request, project_id)
+    result = []
+    def _scan(directory: Path, depth: int = 0):
+        if depth > 1:
+            return
+        try:
+            items = sorted(directory.iterdir())
+        except PermissionError:
+            return
+        for f in items:
+            if f.is_dir() and depth == 0 and f.name not in _CONFIG_EXCLUDE_DIRS:
+                _scan(f, depth + 1)
+                continue
+            if not f.is_file() or f.name in _CONFIG_EXCLUDE_FILES:
+                continue
+            if f.name in _CONFIG_PATTERNS:
+                rel = str(f.relative_to(proj_path))
+                try:
+                    content = f.read_text(errors="replace")
+                except Exception:
+                    continue
+                result.append({
+                    "filename": rel,
+                    "size": f.stat().st_size,
+                    "content": content,
+                })
+    _scan(proj_path)
+    return result
+
+
+@api.put("/api/settings/projects/{project_id}/config-files")
+def save_config_file(request: Request, project_id: str, body: dict):
+    """Save a config file."""
+    proj_path = _resolve_project_path(request, project_id)
+    filename = body.get("filename", "")
+    content = body.get("content", "")
+    if not filename or ".." in filename:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+    target = (proj_path / filename).resolve()
+    if not str(target).startswith(str(proj_path.resolve())):
+        raise HTTPException(status_code=400, detail="Path traversal blocked")
+    target.write_text(content)
     return {"ok": True}
 
 
