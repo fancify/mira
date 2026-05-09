@@ -1274,6 +1274,7 @@ var _cmdHistory = JSON.parse(localStorage.getItem('mira-cmd-history') || '[]');
 var _historyIdx = -1;
 
 var _SPECIAL_KEYS = {
+  'Enter':  '\n',
   'Tab':    '\t',
   'Ctrl+C': '\x03',
   'Ctrl+D': '\x04',
