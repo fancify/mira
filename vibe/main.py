@@ -2379,6 +2379,7 @@ async def terminal_stream_ws(ws: WebSocket, target: str):
 _UPLOAD_DIR = Path("/tmp/mira-uploads")
 
 _ALLOWED_UPLOAD_TYPES = {"image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml", "image/bmp"}
+_UPLOAD_DENY_TYPES = {"application/x-executable", "application/x-msdos-program"}
 _UPLOAD_MAX = 50 * 1024 * 1024
 
 @api.post("/api/upload/image")
@@ -2387,8 +2388,8 @@ async def upload_image(request: Request, file: UploadFile = File(...), host: str
         raise HTTPException(status_code=401, detail="需要管理员权限")
     # 先验证类型，再读取完整内容
     ct = (file.content_type or "").split(";")[0].strip().lower()
-    if ct not in _ALLOWED_UPLOAD_TYPES:
-        raise HTTPException(status_code=415, detail=f"只允许上传图片文件，不支持 {ct}")
+    if ct in _UPLOAD_DENY_TYPES:
+        raise HTTPException(status_code=415, detail=f"不允许上传此类型文件: {ct}")
     # 分块读取，避免一次性加载超大文件到内存
     chunks = []
     total = 0
