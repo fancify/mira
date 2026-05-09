@@ -66,11 +66,15 @@ _SYSTEM_PROMPT = """你是一个项目命名专家。用户描述了一个项目
 返回合法 JSON 数组，不要任何其他内容，不要 markdown 代码块。"""
 
 
-def _make_payload(model_id: str, description: str, cfg: dict) -> tuple[str, dict, str]:
+def _make_payload(model_id: str, description: str, cfg: dict,
+                   ref_image: str | None = None, ref_image_mime: str = "image/png") -> tuple[str, dict, str]:
     """Return (url, headers, body_json) for the given model."""
+    user_content = description
+    if ref_image:
+        user_content += "\n\n请参考上传的图片风格来设计 logo。"
     messages = [
         {"role": "system", "content": _SYSTEM_PROMPT},
-        {"role": "user", "content": description},
+        {"role": "user", "content": user_content},
     ]
 
     if model_id == "deepseek":
@@ -90,7 +94,10 @@ def _make_payload(model_id: str, description: str, cfg: dict) -> tuple[str, dict
         if not key:
             raise RuntimeError("Gemini API key 未配置")
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={key}"
-        body = {"contents": [{"parts": [{"text": _SYSTEM_PROMPT + "\n\n" + description}]}]}
+        parts: list[dict] = [{"text": _SYSTEM_PROMPT + "\n\n" + user_content}]
+        if ref_image:
+            parts.insert(0, {"inline_data": {"mime_type": ref_image_mime, "data": ref_image}})
+        body = {"contents": [{"parts": parts}]}
         return (url, {"Content-Type": "application/json"}, json.dumps(body))
     if model_id == "doubao":
         return (
@@ -111,9 +118,11 @@ def _extract_content(model_id: str, resp_data: dict) -> str:
         raise RuntimeError(f"AI 响应格式异常: {e}，原始数据: {str(resp_data)[:200]}")
 
 
-def call_brainstorm(description: str, model_id: str, cfg: dict) -> list[dict]:
+def call_brainstorm(description: str, model_id: str, cfg: dict,
+                    ref_image: str | None = None, ref_image_mime: str = "image/png") -> list[dict]:
     """Call AI and return parsed candidates. Raises RuntimeError on failure."""
-    url, headers, body = _make_payload(model_id, description, cfg)
+    url, headers, body = _make_payload(model_id, description, cfg,
+                                       ref_image=ref_image, ref_image_mime=ref_image_mime)
     req = urllib.request.Request(url, data=body.encode(), headers=headers, method="POST")
     try:
         with urllib.request.urlopen(req, timeout=30) as resp:

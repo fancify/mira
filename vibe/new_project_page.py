@@ -122,6 +122,14 @@ def render_new_project_page() -> str:
       <span class="wz-label" style="margin:0">选择 AI 模型</span>
       <select id="model-sel" class="model-sel"></select>
     </div>
+    <div class="model-row">
+      <span class="wz-label" style="margin:0">参考图（可选）</span>
+      <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--sub);border:1px solid var(--border);border-radius:var(--radius-sm);padding:4px 10px">
+        <input type="file" id="ref-image" accept="image/*" style="display:none" onchange="_onRefImage(this)">
+        <span id="ref-label">选择图片</span>
+      </label>
+      <span id="ref-preview" style="font-size:10px;color:var(--muted)"></span>
+    </div>
     <div class="wz-error" id="step1-error"></div>
     <button class="wz-btn" id="btn-generate" onclick="doGenerate()">✦ 开始生成</button>
   </div>
@@ -183,7 +191,22 @@ def render_new_project_page() -> str:
     page_js = r"""
 let _candidates = [];
 let _selectedIdx = -1;
+let _refImageBase64 = null;  // base64 of reference image
+let _refImageMime = null;
 // _adminToken is declared by topbar.js, reuse it here
+
+function _onRefImage(input) {
+  var file = input.files && input.files[0];
+  if (!file) { _refImageBase64 = null; _refImageMime = null; return; }
+  _refImageMime = file.type || 'image/png';
+  document.getElementById('ref-label').textContent = file.name;
+  document.getElementById('ref-preview').textContent = (file.size / 1024).toFixed(0) + 'KB';
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    _refImageBase64 = e.target.result.split(',')[1]; // strip data:...;base64,
+  };
+  reader.readAsDataURL(file);
+}
 
 // Load available models
 (async function() {
@@ -239,7 +262,7 @@ async function doGenerate() {
     const res = await fetch('/api/projects/brainstorm', {
       method: 'POST',
       headers: {'Content-Type': 'application/json', 'X-Admin-Token': _adminToken},
-      body: JSON.stringify({description: desc, model})
+      body: JSON.stringify({description: desc, model, ref_image: _refImageBase64 || null, ref_image_mime: _refImageMime || null})
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || '生成失败');
@@ -273,7 +296,7 @@ async function doRegenerate() {
     const res = await fetch('/api/projects/brainstorm', {
       method: 'POST',
       headers: {'Content-Type': 'application/json', 'X-Admin-Token': _adminToken},
-      body: JSON.stringify({description: desc, model})
+      body: JSON.stringify({description: desc, model, ref_image: _refImageBase64 || null, ref_image_mime: _refImageMime || null})
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || '生成失败');

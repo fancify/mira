@@ -713,8 +713,11 @@ def brainstorm_project(request: Request, body: dict):
     from vibe.ai_brainstorm import call_brainstorm
     from vibe.config import load_global_config
     cfg = load_global_config()
+    ref_image = body.get("ref_image")  # base64 string or None
+    ref_image_mime = body.get("ref_image_mime") or "image/png"
     try:
-        candidates = call_brainstorm(description, model_id, cfg)
+        candidates = call_brainstorm(description, model_id, cfg,
+                                     ref_image=ref_image, ref_image_mime=ref_image_mime)
     except RuntimeError as e:
         raise HTTPException(status_code=502, detail=str(e))
     return {"candidates": candidates}
