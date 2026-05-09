@@ -993,17 +993,19 @@ async function selectPane(target, cmd) {
   _updateTopbarUsage(tool);
 }
 
+function _setMobileTokens(html) {
+  var bar = document.getElementById('mobile-token-bar');
+  if (!bar) return;
+  var dot = bar.querySelector('.ws-dot');
+  bar.innerHTML = '';
+  if (dot) bar.appendChild(dot);
+  if (html) bar.insertAdjacentHTML('beforeend', html);
+}
+
 async function _loadPaneTokens(target, tool) {
   var desktop = document.getElementById('toolbar-tokens');
-  var mobile = document.getElementById('mobile-token-bar');
   if (desktop) desktop.innerHTML = '';
-  if (mobile) {
-    // Preserve ws-dot, clear rest
-    var _dot = mobile.querySelector('.ws-dot');
-    mobile.innerHTML = '';
-    if (_dot) mobile.appendChild(_dot);
-    mobile.classList.remove('visible');
-  }
+  _setMobileTokens('');
   if (!tool) return;
   try {
     var res = await fetch('/api/dev/pane-tokens?target=' + encodeURIComponent(target) + '&tool=' + encodeURIComponent(tool), { headers: _authHeaders() });
@@ -1016,7 +1018,7 @@ async function _loadPaneTokens(target, tool) {
         ? '<span class="tok-badge codex">Codex</span>'
         : '<span class="tok-badge claude">Claude</span>';
       if (desktop) desktop.innerHTML = badge;
-      if (mobile) { mobile.innerHTML = badge; mobile.classList.add('visible'); }
+      _setMobileTokens(badge);
       return;
     }
     if (!hasTool) d.tool = tool;
@@ -1040,7 +1042,7 @@ async function _loadPaneTokens(target, tool) {
         '<span class="tok-item"><span class="tok-cost">' + cost + '</span></span>';
     }
     if (desktop) desktop.innerHTML = html;
-    if (mobile) { mobile.innerHTML = html; mobile.classList.add('visible'); }
+    _setMobileTokens(html);
   } catch(e) { /* non-fatal */ }
 }
 
@@ -1161,6 +1163,7 @@ function showTerminal() {
 function showPlaceholder() {
   document.getElementById('ttyd-frame').classList.remove('visible');
   document.getElementById('mobile-term-output').classList.remove('visible');
+  document.getElementById('mobile-token-bar').classList.remove('visible');
   var toolbar = document.getElementById('term-toolbar');
   if (toolbar) toolbar.classList.remove('visible');
   var switcher = document.getElementById('pane-switcher');
