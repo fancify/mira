@@ -89,7 +89,7 @@ def _make_payload(model_id: str, description: str, cfg: dict) -> tuple[str, dict
         key = cfg.get("gemini_api_key") or ""
         if not key:
             raise RuntimeError("Gemini API key 未配置")
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={key}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={key}"
         body = {"contents": [{"parts": [{"text": _SYSTEM_PROMPT + "\n\n" + description}]}]}
         return (url, {"Content-Type": "application/json"}, json.dumps(body))
     if model_id == "doubao":
