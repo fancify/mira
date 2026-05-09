@@ -1497,6 +1497,14 @@ function _setWsDot(connected) {
     dot.title = connected ? '已连接' : '已断开 · 点击重连';
   }
 }
+function _sendOk() {
+  _sendToTerminal('\n');
+  _showToast('已发送确认', 1500);
+}
+function _clearInput() {
+  var input = document.getElementById('mobile-cmd-input');
+  if (input) { input.value = ''; input.focus(); }
+}
 function _sendNum(sel) {
   var v = sel.value;
   if (!v) return;
@@ -2138,7 +2146,7 @@ init();
     <!-- Mobile input bar: bypasses iframe input issues via tmux send-keys -->
     <div class="mobile-input-bar" id="mobile-input-bar">
       <div class="mobile-keys-row" id="mobile-keys-row">
-        <button class="mobile-key-btn ok-btn" data-key="Enter" title="确认">OK</button>
+        <button class="mobile-key-btn ok-btn" onclick="_sendOk()" title="确认">OK</button>
         <span class="keys-sep"></span>
         <button class="mobile-key-btn" data-key="Ctrl+C">⌃C</button>
         <button class="mobile-key-btn" data-key="Esc">Esc</button>
@@ -2146,6 +2154,7 @@ init();
         <span class="keys-sep"></span>
         <button class="mobile-key-btn" data-key="Up">↑</button>
         <button class="mobile-key-btn" data-key="Down">↓</button>
+        <button class="mobile-key-btn" onclick="_clearInput()" title="清空输入">✕</button>
         <span class="keys-sep"></span>
         <select class="mobile-num-sel" id="mobile-num-sel" onchange="_sendNum(this)">
           <option value="">1-9</option>
