@@ -257,15 +257,13 @@ def render_dev_page() -> str:
       color: var(--accent); text-decoration: underline;
       word-break: break-all;
     }
-    #term-disconnect-banner {
-      background: rgba(220,38,38,.15); border: 1px solid rgba(220,38,38,.4);
-      color: var(--red); font-family: var(--mono); font-size: 12px;
-      padding: 8px 12px; text-align: center;
+    .ws-dot {
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; cursor: pointer;
+      transition: background .3s;
     }
-    #term-disconnect-banner button {
-      background: var(--red); color: #fff; border: none; border-radius: 4px;
-      padding: 4px 12px; margin-left: 8px; font-size: 12px; cursor: pointer;
-    }
+    .ws-dot.ok { background: var(--green); }
+    .ws-dot.err { background: var(--red); animation: ws-blink 1.5s ease-in-out infinite; }
+    @keyframes ws-blink { 0%,100%{opacity:1} 50%{opacity:.4} }
 
     /* ── Mobile input bar ── */
     .mobile-input-bar {
@@ -999,7 +997,13 @@ async function _loadPaneTokens(target, tool) {
   var desktop = document.getElementById('toolbar-tokens');
   var mobile = document.getElementById('mobile-token-bar');
   if (desktop) desktop.innerHTML = '';
-  if (mobile) { mobile.innerHTML = ''; mobile.classList.remove('visible'); }
+  if (mobile) {
+    // Preserve ws-dot, clear rest
+    var _dot = mobile.querySelector('.ws-dot');
+    mobile.innerHTML = '';
+    if (_dot) mobile.appendChild(_dot);
+    mobile.classList.remove('visible');
+  }
   if (!tool) return;
   try {
     var res = await fetch('/api/dev/pane-tokens?target=' + encodeURIComponent(target) + '&tool=' + encodeURIComponent(tool), { headers: _authHeaders() });
@@ -1128,6 +1132,7 @@ function showTerminal() {
   if (_isMobile) {
     // Mobile: show ANSI-rendered output + start WebSocket stream
     document.getElementById('mobile-term-output').classList.add('visible');
+    document.getElementById('mobile-token-bar').classList.add('visible');
     if (_currentTarget) _connectTermWs(_currentTarget);
     return;
   }
@@ -1453,15 +1458,14 @@ function _connectTermWs(target) {
 
   _termWs.onclose = function() {
     _termWs = null;
-    // Show disconnected banner on mobile
-    if (_isMobile) _showDisconnectBanner(target);
+    _setWsDot(false);
     // Auto-reconnect if still viewing this pane
     if (_currentTarget === target && _isMobile &&
         document.getElementById('dev-page').classList.contains('detail-open')) {
       setTimeout(function() { _connectTermWs(target); }, 2000);
     }
   };
-  _termWs.onopen = function() { _hideDisconnectBanner(); };
+  _termWs.onopen = function() { _setWsDot(true); };
   _termWs.onerror = function() {};
 }
 
@@ -1473,22 +1477,19 @@ function _disconnectTermWs() {
   }
 }
 
-function _showDisconnectBanner(target) {
-  var existing = document.getElementById('term-disconnect-banner');
-  if (existing) return;
-  var banner = document.createElement('div');
-  banner.id = 'term-disconnect-banner';
-  banner.innerHTML = '连接已断开 <button onclick="_reconnectMobile()">重新连接</button> <button onclick="location.reload()">刷新页面</button>';
-  var output = document.getElementById('mobile-term-output');
-  if (output) output.parentNode.insertBefore(banner, output);
+function _setWsDot(connected) {
+  var dot = document.getElementById('ws-dot');
+  if (dot) {
+    dot.className = 'ws-dot ' + (connected ? 'ok' : 'err');
+    dot.title = connected ? '已连接' : '已断开 · 点击重连';
+  }
 }
-function _hideDisconnectBanner() {
-  var b = document.getElementById('term-disconnect-banner');
-  if (b) b.remove();
-}
-function _reconnectMobile() {
-  _hideDisconnectBanner();
-  if (_currentTarget) _connectTermWs(_currentTarget);
+function _onWsDotClick() {
+  if (_termWs && _termWs.readyState === WebSocket.OPEN) return;
+  if (_currentTarget) {
+    _setWsDot(true);
+    _connectTermWs(_currentTarget);
+  }
 }
 
 async function _sendToTerminal(keys) {
@@ -2112,7 +2113,7 @@ init();
       <iframe id="ttyd-frame" allow="clipboard-read; clipboard-write"></iframe>
     </div>
     <!-- Mobile token bar -->
-    <div class="mobile-token-bar" id="mobile-token-bar"></div>
+    <div class="mobile-token-bar" id="mobile-token-bar"><span class="ws-dot ok" id="ws-dot" onclick="_onWsDotClick()" title="连接状态"></span></div>
     <!-- Mobile: independent terminal output via WebSocket (ANSI-rendered) -->
     <div class="mobile-term-output" id="mobile-term-output"></div>
     <!-- Mobile input bar: bypasses iframe input issues via tmux send-keys -->
