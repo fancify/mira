@@ -256,7 +256,14 @@ async function doGenerate() {
 
   const btn = document.getElementById('btn-generate');
   btn.disabled = true;
-  btn.textContent = '生成中...';
+  var _sec = 0;
+  var _tips = ['思考中…', '构思命名…', '设计 Logo…', '打磨方案…', '即将完成…'];
+  btn.textContent = '✦ ' + _tips[0] + ' (0s)';
+  var _timer = setInterval(function() {
+    _sec++;
+    var tip = _tips[Math.min(Math.floor(_sec / 8), _tips.length - 1)];
+    btn.textContent = '✦ ' + tip + ' (' + _sec + 's)';
+  }, 1000);
 
   try {
     const res = await fetch('/api/projects/brainstorm', {
@@ -268,7 +275,7 @@ async function doGenerate() {
     if (!res.ok) throw new Error(data.detail || '生成失败');
     _candidates = data.candidates;
     renderCandidates(_candidates);
-    document.getElementById('step2-sub').textContent = `AI 生成了 ${_candidates.length} 个方案`;
+    document.getElementById('step2-sub').textContent = `AI 生成了 ${_candidates.length} 个方案 (${_sec}s)`;
     document.getElementById('desc-edit').value = desc;
     document.getElementById('btn-next2').disabled = true;
     _selectedIdx = -1;
@@ -277,6 +284,7 @@ async function doGenerate() {
     errEl.textContent = e.message;
     errEl.style.display = 'block';
   } finally {
+    clearInterval(_timer);
     btn.disabled = false;
     btn.textContent = '✦ 开始生成';
   }
@@ -289,7 +297,14 @@ async function doRegenerate() {
   errEl.style.display = 'none';
   const btn = document.getElementById('btn-regen');
   btn.disabled = true;
-  btn.textContent = '生成中...';
+  var _sec = 0;
+  var _tips = ['思考中…', '构思命名…', '设计 Logo…', '打磨方案…', '即将完成…'];
+  btn.textContent = _tips[0] + ' (0s)';
+  var _timer = setInterval(function() {
+    _sec++;
+    var tip = _tips[Math.min(Math.floor(_sec / 8), _tips.length - 1)];
+    btn.textContent = tip + ' (' + _sec + 's)';
+  }, 1000);
   document.getElementById('candidate-list').innerHTML = '<div style="text-align:center;color:var(--muted);padding:40px 0">重新生成中...</div>';
 
   try {
@@ -303,13 +318,14 @@ async function doRegenerate() {
     _candidates = data.candidates;
     _selectedIdx = -1;
     renderCandidates(_candidates);
-    document.getElementById('step2-sub').textContent = `AI 重新生成了 ${_candidates.length} 个方案`;
+    document.getElementById('step2-sub').textContent = `AI 重新生成了 ${_candidates.length} 个方案 (${_sec}s)`;
     document.getElementById('desc-input').value = desc;
     document.getElementById('btn-next2').disabled = true;
   } catch(e) {
     errEl.textContent = e.message;
     errEl.style.display = 'block';
   } finally {
+    clearInterval(_timer);
     btn.disabled = false;
     btn.textContent = '↻ 重新生成';
   }
