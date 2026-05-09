@@ -132,6 +132,13 @@ def render_new_project_page() -> str:
     <div class="wizard-sub" id="step2-sub">AI 生成了 5 个方案</div>
     <textarea id="desc-edit" class="wz-input" rows="2" style="margin-bottom:12px;font-size:12px;color:var(--sub)"></textarea>
     <div class="candidate-list" id="candidate-list"></div>
+    <div style="margin:16px 0 8px;border-top:1px solid var(--border);padding-top:14px">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:6px">都不满意？直接输入你想要的名字</div>
+      <div style="display:flex;gap:8px">
+        <input id="custom-name" class="wz-input" style="flex:1;margin:0" placeholder="输入项目名称，如 EchoMind">
+        <button class="wz-btn" onclick="useCustomName()" style="flex:0 0 auto;white-space:nowrap">用这个名字 →</button>
+      </div>
+    </div>
     <div class="wz-error" id="step2-error"></div>
     <div style="display:flex;gap:8px">
       <button class="wz-btn" id="btn-next2" onclick="goStep(3)" disabled style="flex:1">下一步：确认配置 →</button>
@@ -319,6 +326,16 @@ function selectCandidate(i) {
   const c = _candidates[i];
   document.getElementById('cfg-name').value = c.name;
   document.getElementById('cfg-desc').value = c.name_meaning;
+}
+
+function useCustomName() {
+  const name = document.getElementById('custom-name').value.trim();
+  if (!name) return;
+  const desc = document.getElementById('desc-edit').value.trim();
+  _selectedIdx = -1;
+  document.getElementById('cfg-name').value = name;
+  document.getElementById('cfg-desc').value = desc;
+  goStep(3);
 }
 
 function _esc(s) {
