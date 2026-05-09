@@ -55,7 +55,7 @@ def parse_candidates(raw: str) -> list[dict]:
     return result
 
 
-_SYSTEM_PROMPT = """你是一个项目命名专家。用户描述了一个项目想法，请生成3个候选方案。
+_SYSTEM_PROMPT = """你是一个项目命名专家。用户描述了一个项目想法，请生成5个候选方案。
 每个方案包含：
 - name: 项目英文名（1个单词，简洁有力，首字母大写）
 - phonetic: 国际音标（如 /straɪd/）

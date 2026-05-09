@@ -132,7 +132,10 @@ def render_new_project_page() -> str:
     <div class="wizard-sub" id="step2-sub">AI 生成了 3 个方案</div>
     <div class="candidate-list" id="candidate-list"></div>
     <div class="wz-error" id="step2-error"></div>
-    <button class="wz-btn" id="btn-next2" onclick="goStep(3)" disabled>下一步：确认配置 →</button>
+    <div style="display:flex;gap:8px">
+      <button class="wz-btn" id="btn-next2" onclick="goStep(3)" disabled style="flex:1">下一步：确认配置 →</button>
+      <button class="wz-btn" id="btn-regen" onclick="doRegenerate()" style="flex:0 0 auto;background:none;border:1px solid var(--border);color:var(--sub)">↻ 重新生成</button>
+    </div>
   </div>
 
   <!-- Step 3: Config -->
@@ -235,6 +238,8 @@ async function doGenerate() {
     _candidates = data.candidates;
     renderCandidates(_candidates);
     document.getElementById('step2-sub').textContent = `AI 根据「${desc}」生成了 ${_candidates.length} 个方案`;
+    document.getElementById('btn-next2').disabled = true;
+    _selectedIdx = -1;
     goStep(2);
   } catch(e) {
     errEl.textContent = e.message;
@@ -242,6 +247,38 @@ async function doGenerate() {
   } finally {
     btn.disabled = false;
     btn.textContent = '✦ 开始生成';
+  }
+}
+
+async function doRegenerate() {
+  const desc = document.getElementById('desc-input').value.trim();
+  const model = document.getElementById('model-sel').value;
+  const errEl = document.getElementById('step2-error');
+  errEl.style.display = 'none';
+  const btn = document.getElementById('btn-regen');
+  btn.disabled = true;
+  btn.textContent = '生成中...';
+  document.getElementById('candidate-list').innerHTML = '<div style="text-align:center;color:var(--muted);padding:40px 0">重新生成中...</div>';
+
+  try {
+    const res = await fetch('/api/projects/brainstorm', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-Admin-Token': _adminToken},
+      body: JSON.stringify({description: desc, model})
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || '生成失败');
+    _candidates = data.candidates;
+    _selectedIdx = -1;
+    renderCandidates(_candidates);
+    document.getElementById('step2-sub').textContent = `AI 根据「${desc}」重新生成了 ${_candidates.length} 个方案`;
+    document.getElementById('btn-next2').disabled = true;
+  } catch(e) {
+    errEl.textContent = e.message;
+    errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '↻ 重新生成';
   }
 }
 
