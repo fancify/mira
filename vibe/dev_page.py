@@ -1544,12 +1544,17 @@ function _sendOk() {
   _showToast('已确认', 1500);
 }
 function _clearInput() {
-  _sendToTerminal('\x15');  // Ctrl+U: clear line in terminal
+  var input = document.getElementById('mobile-cmd-input');
+  if (input) { input.value = ''; input.focus(); }
 }
 function _sendNum(sel) {
   var v = sel.value;
   if (!v) return;
-  _sendToTerminal(v + '\n');
+  var input = document.getElementById('mobile-cmd-input');
+  if (input) {
+    input.value = (input.value ? input.value : '') + v;
+    input.focus();
+  }
   sel.value = '';
 }
 function _onWsDotClick() {
@@ -1767,9 +1772,12 @@ function _openTabSwitcher() {
     var cmd = row.dataset.cmd || '';
     var isCurrent = (_currentTarget === target);
     var _tool = _paneToolMap[target] || row.dataset.tool || '';
-    var _dotHtml = _tool === 'codex' ? '<span class="tab-card-dot" style="background:#22c55e"></span>'
-      : _tool === 'claude' ? '<span class="tab-card-dot" style="background:#818cf8"></span>'
-      : '<span class="tab-card-dot" style="background:var(--border)"></span>';
+    var _pid = row.dataset.projectId || '';
+    var _isFoc = _focusProjects.indexOf(_pid) >= 0;
+    var _dotStyle = _tool === 'codex' ? 'background:#22c55e' + (_isFoc ? ';box-shadow:0 0 6px rgba(34,197,94,.6)' : '')
+      : _tool === 'claude' ? 'background:#818cf8' + (_isFoc ? ';box-shadow:0 0 6px rgba(129,140,248,.6)' : '')
+      : 'background:var(--border)';
+    var _dotHtml = '<span class="tab-card-dot" style="' + _dotStyle + '"></span>';
     var nameEl = row.querySelector('.term-pane-name-text');
     var name = (nameEl ? nameEl.textContent : target).replace(/^.*\//, '');
     var snap = _paneSnapshots[target];
