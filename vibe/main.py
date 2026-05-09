@@ -1488,6 +1488,7 @@ def list_keys(request: Request):
         "category": k.get("category", "other"),
         "key": _mask_key(k.get("key", "")),
         "note": k.get("note", ""),
+        "env_name": k.get("env_name", ""),
     } for k in keys]}
 
 
@@ -1505,7 +1506,8 @@ def add_key(request: Request, body: dict):
     key_id = uuid.uuid4().hex[:8]
     cfg_path, data = _read_vibe_yaml()
     keys = data.get("keys", [])
-    keys.append({"id": key_id, "name": name, "category": category, "key": key_val, "note": note})
+    env_name = (body.get("env_name") or "").strip()
+    keys.append({"id": key_id, "name": name, "category": category, "key": key_val, "note": note, "env_name": env_name})
     data["keys"] = keys
     _write_vibe_yaml(cfg_path, data)
     return {"ok": True, "id": key_id}
@@ -1535,6 +1537,8 @@ def update_key(request: Request, key_id: str, body: dict):
             target["key"] = v
     if "note" in body:
         target["note"] = (body["note"] or "").strip()
+    if "env_name" in body:
+        target["env_name"] = (body["env_name"] or "").strip()
     data["keys"] = keys
     _write_vibe_yaml(cfg_path, data)
     return {"ok": True}
@@ -1553,6 +1557,77 @@ def delete_key(request: Request, key_id: str):
     data["keys"] = new_keys
     _write_vibe_yaml(cfg_path, data)
     return {"ok": True}
+
+
+# ── Key Distribution API ─────────────────────────────────────────────────────
+
+@api.get("/v1/keys/{project_id}")
+def distribute_keys(request: Request, project_id: str):
+    """Return bound keys for a project as env_name→value map."""
+    if not _is_admin(request):
+        raise HTTPException(status_code=401, detail="需要管理员权限")
+    # Find project and its bound_keys
+    projects = get_all_projects()
+    proj = next((p for p in projects if p.get("id") == project_id or p.get("name") == project_id), None)
+    if not proj:
+        raise HTTPException(status_code=404, detail="未找到该项目")
+    import yaml as _yaml
+    proj_path = Path(proj["path"])
+    vibe_yaml = proj_path / "vibe.yaml"
+    proj_cfg = _yaml.safe_load(vibe_yaml.read_text()) if vibe_yaml.exists() else {}
+    bound_ids = proj_cfg.get("bound_keys", [])
+    if not bound_ids:
+        return {}
+    # Look up keys from vault
+    from .config import load_global_config
+    all_keys = load_global_config().get("keys", [])
+    result = {}
+    for k in all_keys:
+        if k.get("id") in bound_ids and k.get("env_name"):
+            result[k["env_name"]] = k["key"]
+    return result
+
+
+@api.post("/api/settings/projects/{project_id}/sync-keys")
+def sync_keys_to_env(request: Request, project_id: str):
+    """Write bound keys into project's .env file."""
+    if not _is_admin(request):
+        raise HTTPException(status_code=401, detail="需要管理员权限")
+    proj_path = _resolve_project_path(request, project_id)
+    import yaml as _yaml
+    vibe_yaml = proj_path / "vibe.yaml"
+    proj_cfg = _yaml.safe_load(vibe_yaml.read_text()) if vibe_yaml.exists() else {}
+    bound_ids = proj_cfg.get("bound_keys", [])
+    if not bound_ids:
+        return {"ok": True, "synced": 0, "message": "无绑定密钥"}
+    from .config import load_global_config
+    all_keys = load_global_config().get("keys", [])
+    key_map = {}
+    for k in all_keys:
+        if k.get("id") in bound_ids and k.get("env_name"):
+            key_map[k["env_name"]] = k["key"]
+    if not key_map:
+        return {"ok": True, "synced": 0, "message": "绑定的密钥未设置变量名"}
+    # Read existing .env, update/append
+    env_file = proj_path / ".env"
+    lines = []
+    existing_keys = set()
+    if env_file.exists():
+        for line in env_file.read_text().splitlines():
+            stripped = line.strip()
+            if stripped and not stripped.startswith("#") and "=" in stripped:
+                k = stripped.split("=", 1)[0]
+                if k in key_map:
+                    lines.append(f"{k}={key_map[k]}")
+                    existing_keys.add(k)
+                    continue
+            lines.append(line)
+    # Append new keys
+    for k, v in key_map.items():
+        if k not in existing_keys:
+            lines.append(f"{k}={v}")
+    env_file.write_text("\n".join(lines) + "\n")
+    return {"ok": True, "synced": len(key_map), "keys": list(key_map.keys())}
 
 
 # ── Project Config API ───────────────────────────────────────────────────────

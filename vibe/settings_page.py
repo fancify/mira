@@ -194,6 +194,10 @@ def render_settings_page() -> str:
           <input class="cfg-input" id="kf-key" placeholder="sk-...">
         </div>
         <div class="cfg-row">
+          <label>变量名</label>
+          <input class="cfg-input" id="kf-envname" placeholder="如 OPENAI_API_KEY">
+        </div>
+        <div class="cfg-row">
           <label>备注</label>
           <input class="cfg-input" id="kf-note" placeholder="可选备注">
         </div>
@@ -352,7 +356,7 @@ function loadKeys() {
       el.innerHTML = keys.map(function(k) {
         return '<div class="key-item">' +
           '<span class="key-badge ' + _esc(k.category) + '">' + _esc(_categoryLabel(k.category)) + '</span>' +
-          '<div><div class="key-name">' + _esc(k.name) + '</div>' +
+          '<div><div class="key-name">' + _esc(k.name) + (k.env_name ? ' <span style="font-size:10px;color:var(--muted);font-weight:400">' + _esc(k.env_name) + '</span>' : '') + '</div>' +
           '<div class="key-val">' + _esc(k.key) + '</div>' +
           (k.note ? '<div class="key-note">' + _esc(k.note) + '</div>' : '') +
           '</div>' +
@@ -374,6 +378,7 @@ function toggleKeyForm() {
     document.getElementById('kf-name').value = '';
     document.getElementById('kf-category').value = 'ai';
     document.getElementById('kf-key').value = '';
+    document.getElementById('kf-envname').value = '';
     document.getElementById('kf-note').value = '';
     document.getElementById('key-form-title').textContent = '添加密钥';
   } else {
@@ -396,6 +401,7 @@ function editKey(id) {
       document.getElementById('kf-category').value = k.category || 'other';
       document.getElementById('kf-key').value = '';
       document.getElementById('kf-key').placeholder = k.key + '（留空则不修改）';
+      document.getElementById('kf-envname').value = k.env_name || '';
       document.getElementById('kf-note').value = k.note || '';
       document.getElementById('key-form-title').textContent = '编辑密钥';
       var form = document.getElementById('key-form');
@@ -407,6 +413,7 @@ function saveKey() {
   var name = document.getElementById('kf-name').value.trim();
   var category = document.getElementById('kf-category').value;
   var key = document.getElementById('kf-key').value.trim();
+  var env_name = document.getElementById('kf-envname').value.trim();
   var note = document.getElementById('kf-note').value.trim();
   if (!name) { showToast('请输入名称', true); return; }
   if (!_editingKeyId && !key) { showToast('请输入密钥', true); return; }
@@ -414,7 +421,7 @@ function saveKey() {
   var method = _editingKeyId ? 'PUT' : 'POST';
   fetch(url, {
     method: method, headers: Object.assign({'Content-Type':'application/json'}, _authHeaders()),
-    body: JSON.stringify(Object.assign({name:name, category:category, note:note}, key ? {key:key} : {}))
+    body: JSON.stringify(Object.assign({name:name, category:category, env_name:env_name, note:note}, key ? {key:key} : {}))
   })
     .then(function(r) {
       if (r.status === 401) { openLoginModal(function() { saveKey(); }); return null; }
@@ -553,7 +560,10 @@ function _renderBasicTab() {
     '<div class="cfg-row"><label>健康 Token</label><input class="cfg-input" id="pe-htoken" value="' + _esc(svcToken) + '" placeholder="ok"></div>' +
     '<div class="cfg-row"><label>绑定密钥</label><div style="flex:1">' +
     '<div class="bound-keys" id="bound-keys">' + boundHtml + '</div>' +
-    '<button class="cfg-btn small" style="margin-top:8px" onclick="showKeyPicker()">+ 绑定密钥</button>' +
+    '<div style="display:flex;gap:8px;margin-top:8px">' +
+    '<button class="cfg-btn small" onclick="showKeyPicker()">+ 绑定密钥</button>' +
+    '<button class="cfg-btn small" onclick="syncKeysToEnv()" style="color:var(--green);border-color:rgba(34,197,94,.3)">⟳ 同步到 .env</button>' +
+    '</div>' +
     '</div></div>' +
     '<div id="key-picker" style="display:none;margin:8px 0 8px 90px">' +
     '<select class="cfg-input" id="pick-key" style="max-width:200px"></select> ' +
@@ -590,6 +600,19 @@ function bindSelectedKey() {
   if (!_projConfig.bound_keys) _projConfig.bound_keys = [];
   if (_projConfig.bound_keys.indexOf(sel.value) === -1) _projConfig.bound_keys.push(sel.value);
   _renderBasicTab();
+}
+
+function syncKeysToEnv() {
+  if (!_selectedProjectId) return;
+  fetch('/api/settings/projects/' + _selectedProjectId + '/sync-keys', {
+    method: 'POST', headers: _authHeaders()
+  }).then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data && data.ok) {
+        if (data.synced > 0) showToast('已同步 ' + data.synced + ' 个密钥到 .env: ' + (data.keys || []).join(', '));
+        else showToast(data.message || '无需同步');
+      } else showToast((data && data.detail) || '同步失败', true);
+    }).catch(function() { showToast('网络错误', true); });
 }
 
 function unbindKey(kid) {
