@@ -1038,11 +1038,11 @@ async function selectPane(target, cmd) {
 var _tokenRefreshTimer = null;
 function _startTokenRefresh(target, tool) {
   if (_tokenRefreshTimer) clearInterval(_tokenRefreshTimer);
-  _tokenRefreshTimer = setInterval(function() {
+  _tokenRefreshTimer = setInterval(async function() {
     if (_currentTarget !== target) { clearInterval(_tokenRefreshTimer); return; }
     var t = _paneToolMap[target] || tool;
-    _loadPaneTokens(target, t);
-    // Usage refreshes less often — only when mode switches, no need to poll
+    await _loadPaneTokens(target, t);
+    _updateTopbarUsage(t);
   }, 30000);
 }
 
@@ -1131,7 +1131,6 @@ async function _updateTopbarUsage(tool) {
   var el = document.getElementById('toolbar-usage');
   var topbarEl = document.getElementById('topbar-usage');
   if (!el) return;
-  if (window._topbarUsageMode && (tool || 'claude') === window._topbarUsageMode) return;
   window._topbarUsageMode = tool || 'claude';
 
   // Hide topbar usage, show in toolbar instead
@@ -1140,9 +1139,9 @@ async function _updateTopbarUsage(tool) {
   var apiUrl = window._topbarUsageMode === 'codex' ? '/api/codex-usage' : '/api/claude-usage';
   try {
     var res = await fetch(apiUrl, { headers: _authHeaders() });
-    if (!res.ok) return;
+    if (!res.ok) { el.innerHTML = ''; return; }
     var d = await res.json();
-    if (d.error) return;
+    if (d.error) { el.innerHTML = ''; return; }
     var usageHtml = _mobileUsageText(d);
     el.innerHTML = usageHtml;
     el.style.display = 'inline-flex';
