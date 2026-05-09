@@ -286,6 +286,10 @@ def render_dev_page() -> str:
       -webkit-tap-highlight-color: transparent;
     }
     .mobile-key-btn:active { background: rgba(var(--accent-rgb),.2); border-color: var(--accent); color: var(--accent); }
+    .mobile-key-btn.ok-btn { background: rgba(34,197,94,.15); border-color: rgba(34,197,94,.3); color: #22c55e; font-weight: 700; padding: 4px 14px; }
+    .mobile-key-btn.ok-btn:active { background: rgba(34,197,94,.3); }
+    .mobile-key-btn.num-btn { min-width: 28px; text-align: center; padding: 4px 6px; }
+    .keys-sep { width: 1px; height: 16px; background: var(--border); flex-shrink: 0; margin: 0 2px; align-self: center; }
     /* Input row */
     .mobile-input-row {
       display: flex; align-items: flex-end; gap: 8px;
@@ -2122,15 +2126,20 @@ init();
     <!-- Mobile input bar: bypasses iframe input issues via tmux send-keys -->
     <div class="mobile-input-bar" id="mobile-input-bar">
       <div class="mobile-keys-row" id="mobile-keys-row">
+        <button class="mobile-key-btn ok-btn" data-key="Enter" title="确认">OK</button>
+        <span class="keys-sep"></span>
         <button class="mobile-key-btn" data-key="Ctrl+C">⌃C</button>
         <button class="mobile-key-btn" data-key="Esc">Esc</button>
+        <button class="mobile-key-btn" data-key="Tab">Tab</button>
+        <span class="keys-sep"></span>
         <button class="mobile-key-btn" data-key="Up">↑</button>
         <button class="mobile-key-btn" data-key="Down">↓</button>
-        <button class="mobile-key-btn" data-key="1">1</button>
-        <button class="mobile-key-btn" data-key="2">2</button>
-        <button class="mobile-key-btn" data-key="3">3</button>
-        <button class="mobile-key-btn" data-key="4">4</button>
-        <button class="mobile-key-btn" data-key="5">5</button>
+        <span class="keys-sep"></span>
+        <button class="mobile-key-btn num-btn" data-key="1">1</button>
+        <button class="mobile-key-btn num-btn" data-key="2">2</button>
+        <button class="mobile-key-btn num-btn" data-key="3">3</button>
+        <button class="mobile-key-btn num-btn" data-key="4">4</button>
+        <button class="mobile-key-btn num-btn" data-key="5">5</button>
       </div>
       <div class="mobile-input-row">
         <label class="mobile-attach-btn" for="mobile-file-input" title="上传文件">
