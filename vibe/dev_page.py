@@ -89,6 +89,14 @@ def render_dev_page() -> str:
     transition: background .12s;
   }
   .term-group-header:hover { background: rgba(255,255,255,.03); }
+  .term-group-header.focused { background: rgba(var(--accent-rgb),.06); border-left: 2px solid var(--accent); }
+  .term-group-header.focused .term-group-name { color: var(--accent); }
+  .focus-btn {
+    font-size: 12px; color: var(--border); cursor: pointer; flex-shrink: 0;
+    transition: color .12s; line-height: 1;
+  }
+  .focus-btn:hover { color: var(--accent); }
+  .focus-btn.active { color: var(--accent); }
   .term-group-arrow {
     font-size: 10px; color: var(--muted); width: 12px; text-align: center;
     transition: transform .15s;
@@ -786,7 +794,8 @@ function escHtml(s) {
 // ── State ──────────────────────────────────────────────────────────────────────
 let _currentTarget = null;
 const _groupCollapsed = {};
-const _paneToolMap = {};  // target -> tool type  // project_id -> bool
+const _paneToolMap = {};  // target -> tool type
+var _focusProject = localStorage.getItem('mira-focus-project') || null;  // project_id -> bool
 const _paneHostMap = {};     // target -> host alias (远程 pane 映射)
 const _filterProject = new URLSearchParams(location.search).get('project') || null;
 
@@ -863,11 +872,23 @@ async function loadPanes(forceRebuild) {
       }
       _firstLoad = false;
 
-      for (const [pid, grp] of groups) {
+      // Sort: focused group first
+      var _sortedGroups = Array.from(groups.entries());
+      if (_focusProject) {
+        _sortedGroups.sort(function(a, b) {
+          if (a[0] === _focusProject) return -1;
+          if (b[0] === _focusProject) return 1;
+          return 0;
+        });
+      }
+
+      for (const [pid, grp] of _sortedGroups) {
         const collapsed = !!_groupCollapsed[pid];
-        html += `<div class="term-group-header" data-group="${escHtml(pid)}" onclick="toggleGroup('${escHtml(pid)}')">
+        const isFocused = _focusProject === pid;
+        html += `<div class="term-group-header${isFocused ? ' focused' : ''}" data-group="${escHtml(pid)}" onclick="toggleGroup('${escHtml(pid)}')">
           <span class="term-group-arrow${collapsed ? ' collapsed' : ''}">▾</span>
-          <span class="term-group-name">${escHtml(grp.name)}</span>
+          <span class="focus-btn${isFocused ? ' active' : ''}" onclick="event.stopPropagation();toggleFocus('${escHtml(pid)}')" title="${isFocused ? '取消专注' : '设为专注'}">★</span>
+          <span class="term-group-name" data-group="${escHtml(pid)}">${escHtml(grp.name)}</span>
           <span class="term-group-count">${grp.panes.length}</span>
         </div>
         <div class="term-group-body${collapsed ? ' collapsed' : ''}" data-group-body="${escHtml(pid)}">`;
@@ -921,6 +942,17 @@ function toggleGroup(pid) {
   const body = document.querySelector(`.term-group-body[data-group-body="${CSS.escape(pid)}"]`);
   if (header) header.querySelector('.term-group-arrow').classList.toggle('collapsed', collapsed);
   if (body) body.classList.toggle('collapsed', collapsed);
+}
+
+function toggleFocus(pid) {
+  if (_focusProject === pid) {
+    _focusProject = null;
+    localStorage.removeItem('mira-focus-project');
+  } else {
+    _focusProject = pid;
+    localStorage.setItem('mira-focus-project', pid);
+  }
+  loadPanes(true);
 }
 
 // ── Kill pane ─────────────────────────────────────────────────────────────────
