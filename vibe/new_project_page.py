@@ -129,7 +129,8 @@ def render_new_project_page() -> str:
   <!-- Step 2: Candidates -->
   <div class="step-panel" id="step-2">
     <div class="wizard-title">选择一个方向</div>
-    <div class="wizard-sub" id="step2-sub">AI 生成了 3 个方案</div>
+    <div class="wizard-sub" id="step2-sub">AI 生成了 5 个方案</div>
+    <textarea id="desc-edit" class="wz-input" rows="2" style="margin-bottom:12px;font-size:12px;color:var(--sub)"></textarea>
     <div class="candidate-list" id="candidate-list"></div>
     <div class="wz-error" id="step2-error"></div>
     <div style="display:flex;gap:8px">
@@ -237,7 +238,8 @@ async function doGenerate() {
     if (!res.ok) throw new Error(data.detail || '生成失败');
     _candidates = data.candidates;
     renderCandidates(_candidates);
-    document.getElementById('step2-sub').textContent = `AI 根据「${desc}」生成了 ${_candidates.length} 个方案`;
+    document.getElementById('step2-sub').textContent = `AI 生成了 ${_candidates.length} 个方案`;
+    document.getElementById('desc-edit').value = desc;
     document.getElementById('btn-next2').disabled = true;
     _selectedIdx = -1;
     goStep(2);
@@ -251,7 +253,7 @@ async function doGenerate() {
 }
 
 async function doRegenerate() {
-  const desc = document.getElementById('desc-input').value.trim();
+  const desc = document.getElementById('desc-edit').value.trim();
   const model = document.getElementById('model-sel').value;
   const errEl = document.getElementById('step2-error');
   errEl.style.display = 'none';
@@ -271,7 +273,8 @@ async function doRegenerate() {
     _candidates = data.candidates;
     _selectedIdx = -1;
     renderCandidates(_candidates);
-    document.getElementById('step2-sub').textContent = `AI 根据「${desc}」重新生成了 ${_candidates.length} 个方案`;
+    document.getElementById('step2-sub').textContent = `AI 重新生成了 ${_candidates.length} 个方案`;
+    document.getElementById('desc-input').value = desc;
     document.getElementById('btn-next2').disabled = true;
   } catch(e) {
     errEl.textContent = e.message;
