@@ -458,6 +458,9 @@ def render_dev_page() -> str:
     opacity: 0;
   }
   .tab-card.active { border-color: var(--accent); box-shadow: 0 4px 16px rgba(0,0,0,.5), 0 0 0 1px var(--accent); }
+  .tab-card.focused { border-color: rgba(129,140,248,.4); background: rgba(var(--accent-rgb),.06); }
+  .tab-card.focused .tab-card-header { background: rgba(var(--accent-rgb),.08); }
+  .tab-card.focused .tab-card-name { color: var(--accent); font-weight: 700; }
   .tab-card.show { opacity: 1; }
   .tab-card-header {
     display: flex; align-items: center; gap: 5px;
@@ -1765,8 +1768,7 @@ function _openTabSwitcher() {
   // Build from cached sidebar data (no API call)
   var rows = document.querySelectorAll('.term-pane-row');
   if (!rows.length) return;
-  var html = '';
-  var i = 0;
+  var cards = [];
   rows.forEach(function(row) {
     var target = row.dataset.target;
     var cmd = row.dataset.cmd || '';
@@ -1774,29 +1776,30 @@ function _openTabSwitcher() {
     var _tool = _paneToolMap[target] || row.dataset.tool || '';
     var _pid = row.dataset.projectId || '';
     var _isFoc = _focusProjects.indexOf(_pid) >= 0;
-    var _dotStyle = _tool === 'codex' ? 'background:#22c55e' + (_isFoc ? ';box-shadow:0 0 6px rgba(34,197,94,.6)' : '')
-      : _tool === 'claude' ? 'background:#818cf8' + (_isFoc ? ';box-shadow:0 0 6px rgba(129,140,248,.6)' : '')
-      : 'background:var(--border)';
-    var _dotHtml = '<span class="tab-card-dot" style="' + _dotStyle + '"></span>';
+    var _dotColor = _tool === 'codex' ? '#22c55e' : _tool === 'claude' ? '#818cf8' : 'var(--border)';
     var nameEl = row.querySelector('.term-pane-name-text');
     var name = (nameEl ? nameEl.textContent : target).replace(/^.*\//, '');
     var snap = _paneSnapshots[target];
     var previewHtml = snap
       ? '<div class="tab-card-preview">' + escHtml(snap) + '</div>'
       : '<div class="tab-card-empty">暂无预览</div>';
-    html += '<div class="tab-card' + (isCurrent ? ' active' : '') + ' show"'
+    var cardCls = 'tab-card show' + (isCurrent ? ' active' : '') + (_isFoc ? ' focused' : '');
+    var cardHtml = '<div class="' + cardCls + '"'
       + ' data-target="' + escHtml(target) + '"'
       + ' data-cmd="' + escHtml(cmd) + '">'
       + '<div class="tab-card-header">'
-      + _dotHtml
+      + '<span class="tab-card-dot" style="background:' + _dotColor + '"></span>'
       + '<span class="tab-card-name">' + escHtml(name) + '</span>'
+      + (_isFoc ? '<span style="font-size:8px;color:' + _dotColor + ';margin-right:4px">★</span>' : '')
       + '<button class="tab-card-close" onclick="event.stopPropagation();_killTabCard(this)" title="关闭">&times;</button>'
       + '</div>'
       + previewHtml
       + '</div>';
-    i++;
+    cards.push({html: cardHtml, focused: _isFoc});
   });
-  overlay.innerHTML = '<div class="tab-grid">' + html + '</div>';
+  // Sort: focused cards first
+  cards.sort(function(a, b) { return (a.focused ? 0 : 1) - (b.focused ? 0 : 1); });
+  overlay.innerHTML = '<div class="tab-grid">' + cards.map(function(c) { return c.html; }).join('') + '</div>';
   overlay.classList.add('open');
   requestAnimationFrame(function() { overlay.classList.add('visible'); });
   // 3D scroll
