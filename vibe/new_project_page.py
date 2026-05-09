@@ -131,7 +131,7 @@ def render_new_project_page() -> str:
       <span id="ref-preview" style="font-size:10px;color:var(--muted)"></span>
     </div>
     <div class="wz-error" id="step1-error"></div>
-    <button class="wz-btn" id="btn-generate" onclick="doGenerate()">✦ 开始生成</button>
+    <button type="button" class="wz-btn" id="btn-generate" onclick="doGenerate()">✦ 开始生成</button>
   </div>
 
   <!-- Step 2: Candidates -->
@@ -144,13 +144,13 @@ def render_new_project_page() -> str:
       <div style="font-size:12px;color:var(--muted);margin-bottom:6px">都不满意？直接输入你想要的名字</div>
       <div style="display:flex;gap:8px">
         <input id="custom-name" class="wz-input" style="flex:1;margin:0" placeholder="输入项目名称，如 EchoMind">
-        <button class="wz-btn" onclick="useCustomName()" style="flex:0 0 auto;white-space:nowrap">用这个名字 →</button>
+        <button type="button" class="wz-btn" onclick="useCustomName()" style="flex:0 0 auto;white-space:nowrap">用这个名字 →</button>
       </div>
     </div>
     <div class="wz-error" id="step2-error"></div>
     <div style="display:flex;gap:8px">
-      <button class="wz-btn" id="btn-next2" onclick="goStep(3)" disabled style="flex:1">下一步：确认配置 →</button>
-      <button class="wz-btn" id="btn-regen" onclick="doRegenerate()" style="flex:0 0 auto;background:none;border:1px solid var(--border);color:var(--sub)">↻ 重新生成</button>
+      <button type="button" class="wz-btn" id="btn-next2" onclick="goStep(3)" disabled style="flex:1">下一步：确认配置 →</button>
+      <button type="button" class="wz-btn" id="btn-regen" onclick="doRegenerate()" style="flex:0 0 auto;background:none;border:1px solid var(--border);color:var(--sub)">↻ 重新生成</button>
     </div>
   </div>
 
@@ -175,7 +175,7 @@ def render_new_project_page() -> str:
       <input id="cfg-domain" class="wz-input" type="text" placeholder="如 myapp.zhuchao.life">
     </div>
     <div class="wz-error" id="step3-error"></div>
-    <button class="wz-btn" onclick="doCreate()">✦ 创建项目</button>
+    <button type="button" class="wz-btn" onclick="doCreate()">✦ 创建项目</button>
   </div>
 
   <!-- Step 4: Creating -->
