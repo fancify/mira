@@ -2151,10 +2151,10 @@ init();
         <button class="mobile-key-btn" data-key="Ctrl+C">⌃C</button>
         <button class="mobile-key-btn" data-key="Esc">Esc</button>
         <button class="mobile-key-btn" data-key="Tab">Tab</button>
+        <button class="mobile-key-btn" onclick="_clearInput()" title="清空输入框">Cls</button>
         <span class="keys-sep"></span>
         <button class="mobile-key-btn" data-key="Up">↑</button>
         <button class="mobile-key-btn" data-key="Down">↓</button>
-        <button class="mobile-key-btn" onclick="_clearInput()" title="清空输入">✕</button>
         <span class="keys-sep"></span>
         <select class="mobile-num-sel" id="mobile-num-sel" onchange="_sendNum(this)">
           <option value="">1-9</option>
