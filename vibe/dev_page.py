@@ -288,7 +288,12 @@ def render_dev_page() -> str:
     .mobile-key-btn:active { background: rgba(var(--accent-rgb),.2); border-color: var(--accent); color: var(--accent); }
     .mobile-key-btn.ok-btn { background: rgba(34,197,94,.15); border-color: rgba(34,197,94,.3); color: #22c55e; font-weight: 700; padding: 4px 14px; }
     .mobile-key-btn.ok-btn:active { background: rgba(34,197,94,.3); }
-    .mobile-key-btn.num-btn { min-width: 28px; text-align: center; padding: 4px 6px; }
+    .mobile-num-sel {
+      background: rgba(255,255,255,.06); border: 1px solid var(--border);
+      color: var(--sub); font-family: var(--mono); font-size: 11px;
+      padding: 3px 4px; border-radius: 4px; flex-shrink: 0;
+      -webkit-appearance: none; appearance: none; text-align: center; width: 42px;
+    }
     .keys-sep { width: 1px; height: 16px; background: var(--border); flex-shrink: 0; margin: 0 2px; align-self: center; }
     /* Input row */
     .mobile-input-row {
@@ -1492,6 +1497,12 @@ function _setWsDot(connected) {
     dot.title = connected ? '已连接' : '已断开 · 点击重连';
   }
 }
+function _sendNum(sel) {
+  var v = sel.value;
+  if (!v) return;
+  _sendToTerminal(v + '\n');
+  sel.value = '';
+}
 function _onWsDotClick() {
   if (_termWs && _termWs.readyState === WebSocket.OPEN) return;
   if (_currentTarget) {
@@ -2136,11 +2147,12 @@ init();
         <button class="mobile-key-btn" data-key="Up">↑</button>
         <button class="mobile-key-btn" data-key="Down">↓</button>
         <span class="keys-sep"></span>
-        <button class="mobile-key-btn num-btn" data-key="1">1</button>
-        <button class="mobile-key-btn num-btn" data-key="2">2</button>
-        <button class="mobile-key-btn num-btn" data-key="3">3</button>
-        <button class="mobile-key-btn num-btn" data-key="4">4</button>
-        <button class="mobile-key-btn num-btn" data-key="5">5</button>
+        <select class="mobile-num-sel" id="mobile-num-sel" onchange="_sendNum(this)">
+          <option value="">1-9</option>
+          <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+          <option value="4">4</option><option value="5">5</option><option value="6">6</option>
+          <option value="7">7</option><option value="8">8</option><option value="9">9</option>
+        </select>
       </div>
       <div class="mobile-input-row">
         <label class="mobile-attach-btn" for="mobile-file-input" title="上传文件">
