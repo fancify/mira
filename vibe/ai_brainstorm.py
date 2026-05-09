@@ -93,7 +93,7 @@ def _make_payload(model_id: str, description: str, cfg: dict,
         key = cfg.get("gemini_api_key") or ""
         if not key:
             raise RuntimeError("Gemini API key 未配置")
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={key}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key={key}"
         parts: list[dict] = [{"text": _SYSTEM_PROMPT + "\n\n" + user_content}]
         if ref_image:
             parts.insert(0, {"inline_data": {"mime_type": ref_image_mime, "data": ref_image}})
@@ -125,7 +125,7 @@ def call_brainstorm(description: str, model_id: str, cfg: dict,
                                        ref_image=ref_image, ref_image_mime=ref_image_mime)
     req = urllib.request.Request(url, data=body.encode(), headers=headers, method="POST")
     try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
+        with urllib.request.urlopen(req, timeout=60) as resp:
             resp_data = json.loads(resp.read())
     except urllib.error.HTTPError as e:
         safe_url = url.split("?")[0] if "?" in url else url
