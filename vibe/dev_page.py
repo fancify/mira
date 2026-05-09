@@ -1498,8 +1498,8 @@ function _setWsDot(connected) {
   }
 }
 function _sendOk() {
-  _sendToTerminal('\n');
-  _showToast('已发送确认', 1500);
+  _sendToTerminal('y\n');
+  _showToast('已确认', 1500);
 }
 function _clearInput() {
   var input = document.getElementById('mobile-cmd-input');
