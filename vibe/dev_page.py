@@ -48,6 +48,8 @@ def render_dev_page() -> str:
   }
   .term-pane-row:hover { background: rgba(255,255,255,.03); }
   .term-pane-row.active { background: rgba(var(--accent-rgb),.1); border-left-color: var(--accent); }
+  .term-pane-row.focused { background: rgba(var(--accent-rgb),.04); }
+  .term-pane-row.focused .term-pane-name-text { color: var(--accent); }
   .term-pane-kill {
     opacity: 0.5; flex-shrink: 0; cursor: pointer;
     width: 18px; height: 18px; border-radius: 4px;
@@ -92,11 +94,11 @@ def render_dev_page() -> str:
   .term-group-header.focused { background: rgba(var(--accent-rgb),.06); border-left: 2px solid var(--accent); }
   .term-group-header.focused .term-group-name { color: var(--accent); }
   .focus-btn {
-    font-size: 12px; color: var(--border); cursor: pointer; flex-shrink: 0;
-    transition: color .12s; line-height: 1;
+    font-size: 11px; color: var(--muted); cursor: pointer; flex-shrink: 0;
+    transition: color .12s; line-height: 1; opacity: .4;
   }
-  .focus-btn:hover { color: var(--accent); }
-  .focus-btn.active { color: var(--accent); }
+  .focus-btn:hover { color: var(--accent); opacity: 1; }
+  .focus-btn.active { color: var(--accent); opacity: 1; }
   .term-group-arrow {
     font-size: 10px; color: var(--muted); width: 12px; text-align: center;
     transition: transform .15s;
@@ -806,16 +808,20 @@ function _renderPaneRow(p, st) {
   var _badge = p.tool === 'codex' ? '<div class="term-pane-badge codex">X</div>'
     : p.tool === 'claude' ? '<div class="term-pane-badge claude">C</div>'
     : '<div class="term-pane-badge unknown"></div>';
-  return `<div class="term-pane-row${_currentTarget === p.target ? ' active' : ''}"
+  var _pid = p.project_id || '';
+  var _isFocused = _focusProject === _pid;
+  var _focusStar = `<span class="focus-btn${_isFocused ? ' active' : ''}" onclick="event.stopPropagation();toggleFocus('${escHtml(_pid)}')" title="${_isFocused ? '取消专注' : '设为专注'}">★</span>`;
+  return `<div class="term-pane-row${_currentTarget === p.target ? ' active' : ''}${_isFocused ? ' focused' : ''}"
        data-target="${escHtml(p.target)}"
        data-cmd="${escHtml(p.command || '')}"
-       data-project-id="${escHtml(p.project_id || '')}"
+       data-project-id="${escHtml(_pid)}"
        data-tool="${escHtml(p.tool || '')}">
     ${_badge}
     <div class="term-pane-info">
       <div class="term-pane-name">
         <span class="term-pane-name-text">${escHtml((p.label || p.target).replace(/^.*\//, ''))}</span>
         ${p._host ? `<span class="term-host-badge${p._host_online === false ? ' offline' : ''}">${escHtml(p._host)}</span>` : ''}
+        ${_focusStar}
         <span class="term-pane-kill" title="关闭终端" onclick="event.stopPropagation(); killPane(this);">×</span>
       </div>
     </div>
@@ -884,10 +890,8 @@ async function loadPanes(forceRebuild) {
 
       for (const [pid, grp] of _sortedGroups) {
         const collapsed = !!_groupCollapsed[pid];
-        const isFocused = _focusProject === pid;
-        html += `<div class="term-group-header${isFocused ? ' focused' : ''}" data-group="${escHtml(pid)}" onclick="toggleGroup('${escHtml(pid)}')">
+        html += `<div class="term-group-header${_focusProject === pid ? ' focused' : ''}" data-group="${escHtml(pid)}" onclick="toggleGroup('${escHtml(pid)}')">
           <span class="term-group-arrow${collapsed ? ' collapsed' : ''}">▾</span>
-          <span class="focus-btn${isFocused ? ' active' : ''}" onclick="event.stopPropagation();toggleFocus('${escHtml(pid)}')" title="${isFocused ? '取消专注' : '设为专注'}">★</span>
           <span class="term-group-name" data-group="${escHtml(pid)}">${escHtml(grp.name)}</span>
           <span class="term-group-count">${grp.panes.length}</span>
         </div>
