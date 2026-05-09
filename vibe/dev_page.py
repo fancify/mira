@@ -1502,8 +1502,7 @@ function _sendOk() {
   _showToast('已确认', 1500);
 }
 function _clearInput() {
-  var input = document.getElementById('mobile-cmd-input');
-  if (input) { input.value = ''; input.focus(); }
+  _sendToTerminal('\x15');  // Ctrl+U: clear line in terminal
 }
 function _sendNum(sel) {
   var v = sel.value;
