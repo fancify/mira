@@ -545,10 +545,21 @@ function _renderBasicTab() {
   var svcPort = typeof svc === 'object' ? (svc.port || '') : svc;
   var svcHealth = typeof svc === 'object' ? (svc.health_path || '') : '';
   var svcToken = typeof svc === 'object' ? (svc.health_token || '') : '';
-  var boundHtml = '';
   var bk = d.bound_keys || [];
-  for (var i = 0; i < bk.length; i++) {
-    boundHtml += '<span class="bound-chip">' + _esc(bk[i]) + ' <span class="remove" onclick="unbindKey(\'' + _esc(bk[i]) + '\')">&times;</span></span>';
+  var boundHtml = '';
+  if (bk.length) {
+    boundHtml = '<table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:4px">' +
+      '<tr style="color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:1px"><th style="text-align:left;padding:3px 6px">名称</th><th style="text-align:left;padding:3px 6px">变量名</th><th style="width:30px"></th></tr>';
+    for (var i = 0; i < bk.length; i++) {
+      var _bkInfo = _allKeys.filter(function(k) { return k.id === bk[i]; })[0];
+      var _bkName = _bkInfo ? _bkInfo.name : bk[i];
+      var _bkEnv = _bkInfo ? (_bkInfo.env_name || '') : '';
+      boundHtml += '<tr style="border-bottom:1px solid rgba(255,255,255,.04)">' +
+        '<td style="padding:4px 6px;color:var(--text)">' + _esc(_bkName) + '</td>' +
+        '<td style="padding:4px 6px;color:var(--muted);font-family:var(--mono)">' + _esc(_bkEnv) + '</td>' +
+        '<td style="padding:4px 6px"><span style="cursor:pointer;color:var(--sub)" onclick="unbindKey(\'' + _esc(bk[i]) + '\')">&times;</span></td></tr>';
+    }
+    boundHtml += '</table>';
   }
   el.innerHTML =
     '<div class="cfg-row"><label>名称</label><input class="cfg-input" id="pe-name" value="' + _esc(d.name || '') + '"></div>' +
