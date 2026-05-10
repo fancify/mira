@@ -80,8 +80,10 @@ def capture_pane(target: str, lines: int = 200, ansi: bool = False) -> str:
 def send_keys(target: str, keys: str) -> None:
     """Send keystrokes to a tmux pane.
 
-    Splits on \\n so newlines are sent as the tmux 'Enter' key name,
-    which tmux recognises correctly unlike a literal newline character.
+    For multi-line or long text: uses tmux load-buffer + paste-buffer
+    for reliable paste without truncation.
+    For short single-line: uses send-keys with -l (literal) flag.
+    Special control chars (\x03 etc.) use send-keys without -l.
     """
     if not _TARGET_RE.match(target):
         raise RuntimeError(f"Invalid tmux target format: {target!r}")
@@ -91,10 +93,29 @@ def send_keys(target: str, keys: str) -> None:
         if proc.returncode != 0:
             raise RuntimeError(f"send-keys failed for target '{target}': {proc.stderr.strip()}")
 
+    # Control characters (Ctrl+C, Ctrl+U, Esc, etc.) — send directly
+    if len(keys) == 1 and ord(keys) < 32 and keys != '\n':
+        _run([_TMUX_BIN, "send-keys", "-t", target, "-l", keys])
+        return
+
+    # Multi-line or long text — use buffer paste for reliability
+    if '\n' in keys and not keys.endswith('\n'):
+        # Text without trailing newline: use load-buffer + paste-buffer
+        import tempfile
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
+            f.write(keys)
+            f.flush()
+            _run([_TMUX_BIN, "load-buffer", f.name])
+            _run([_TMUX_BIN, "paste-buffer", "-t", target, "-d"])
+        import os
+        os.unlink(f.name)
+        return
+
+    # Split on newlines, send each part literally
     parts = keys.split("\n")
     for i, part in enumerate(parts):
         if part:
-            _run([_TMUX_BIN, "send-keys", "-t", target, part])
+            _run([_TMUX_BIN, "send-keys", "-t", target, "-l", part])
         if i < len(parts) - 1:
             _run([_TMUX_BIN, "send-keys", "-t", target, "Enter"])
 
