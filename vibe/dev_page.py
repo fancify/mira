@@ -2069,15 +2069,24 @@ function _initUpload() {
     });
   }
 
-  // Global paste interception (capture image paste before iframe gets it)
+  // Global paste interception
   document.addEventListener('paste', function(e) {
     var items = e.clipboardData && e.clipboardData.items;
+    // Image paste → upload
     for (var i = 0; items && i < items.length; i++) {
       if (items[i].type.startsWith('image/')) {
         e.preventDefault();
         _uploadImage(items[i].getAsFile());
         return;
       }
+    }
+    // Multi-line text paste → send via API to avoid ttyd truncation
+    var text = e.clipboardData && e.clipboardData.getData('text');
+    if (text && text.includes('\n') && _currentTarget &&
+        document.getElementById('dev-page').classList.contains('detail-open')) {
+      e.preventDefault();
+      _sendToTerminal(text);
+      _showToast('已粘贴 ' + text.split('\n').length + ' 行', 2000);
     }
   });
 }
