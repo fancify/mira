@@ -1139,9 +1139,9 @@ async function _updateTopbarUsage(tool) {
   var apiUrl = window._topbarUsageMode === 'codex' ? '/api/codex-usage' : '/api/claude-usage';
   try {
     var res = await fetch(apiUrl, { headers: _authHeaders() });
-    if (!res.ok) { el.innerHTML = ''; return; }
+    if (!res.ok) return;
     var d = await res.json();
-    if (d.error) { el.innerHTML = ''; return; }
+    if (d.error) return;
     var usageHtml = _mobileUsageText(d);
     el.innerHTML = usageHtml;
     el.style.display = 'inline-flex';
@@ -2105,10 +2105,15 @@ async function init() {
   await _initAuth();
   if (!_isAdmin) { openLoginModal(init); return; }
   // Event delegation: bind click once on the container, survives innerHTML rebuilds
+  // Prevent sidebar clicks from stealing focus away from the terminal iframe
+  document.getElementById('term-pane-list').addEventListener('mousedown', function(e) {
+    if (e.target.closest('.term-pane-row') && !e.target.closest('.term-pane-kill')) {
+      e.preventDefault();
+    }
+  });
   document.getElementById('term-pane-list').addEventListener('click', function(e) {
     var row = e.target.closest('.term-pane-row');
     if (!row) return;
-    // Ignore clicks on kill button (has its own handler)
     if (e.target.closest('.term-pane-kill')) return;
     selectPane(row.dataset.target, row.dataset.cmd);
   });

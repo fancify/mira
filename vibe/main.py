@@ -1051,21 +1051,90 @@ def _detect_used_by(port: int, projects: list[dict]) -> list[str]:
     return found
 
 
+def _get_claude_oauth_token() -> tuple[str, str] | None:
+    """Return (access_token, subscription_type) or None.
+
+    Tries in order:
+    1. ~/.claude/.credentials.json  (old CLI auth)
+    2. macOS Claude desktop app config.json (encrypted with Keychain key)
+    """
+    import json as _json, hashlib, ctypes, base64, subprocess as _sp, sys
+
+    # ── 方式1: 旧版 CLI 凭证文件 ──────────────────────────────────────────
+    creds_path = Path.home() / ".claude" / ".credentials.json"
+    if creds_path.exists():
+        try:
+            creds = _json.loads(creds_path.read_text())
+            token = creds["claudeAiOauth"]["accessToken"]
+            sub = creds["claudeAiOauth"].get("subscriptionType", "unknown")
+            return token, sub
+        except (KeyError, _json.JSONDecodeError):
+            pass
+
+    # ── 方式2: macOS 桌面 App config.json (Electron safeStorage + Keychain) ─
+    if sys.platform != "darwin":
+        return None
+    try:
+        config_path = Path.home() / "Library" / "Application Support" / "Claude" / "config.json"
+        if not config_path.exists():
+            return None
+        cfg = _json.loads(config_path.read_text())
+        enc_b64 = cfg.get("oauth:tokenCache")
+        if not enc_b64:
+            return None
+
+        # 从 Keychain 读取加密密钥字符串
+        key_b64 = _sp.check_output(
+            ["security", "find-generic-password", "-s", "Claude Safe Storage",
+             "-a", "Claude Key", "-w"],
+            stderr=_sp.DEVNULL,
+        ).strip().decode()
+
+        # 派生 AES-128 密钥: PBKDF2(key_str, "saltysalt", 1003, SHA1) → 16字节
+        aes_key = hashlib.pbkdf2_hmac("sha1", key_b64.encode(), b"saltysalt", 1003, 16)
+
+        # AES-128-CBC 解密: 跳过 "v10" 前缀, IV = 16个空格
+        enc_bytes = base64.b64decode(enc_b64)
+        ct = enc_bytes[3:]  # skip "v10"
+        iv = b" " * 16
+        libcc = ctypes.CDLL("/usr/lib/libSystem.B.dylib")
+        out = ctypes.create_string_buffer(len(ct))
+        out_len = ctypes.c_size_t(0)
+        err = libcc.CCCrypt(1, 0, 1, aes_key, len(aes_key), iv,
+                            ct, len(ct), out, len(ct), ctypes.byref(out_len))
+        if err != 0:
+            return None
+
+        token_cache = _json.loads(bytes(out[:out_len.value]).decode("utf-8"))
+
+        # 优先选择含 claude_code scope 的 token
+        token = None
+        for k, v in token_cache.items():
+            if isinstance(v, dict) and v.get("token"):
+                if "claude_code" in k:
+                    token = v["token"]
+                    break
+        if not token:
+            for v in token_cache.values():
+                if isinstance(v, dict) and v.get("token"):
+                    token = v["token"]
+                    break
+        if not token:
+            return None
+        return token, "unknown"
+    except Exception:
+        return None
+
+
 @api.get("/api/claude-usage")
 def claude_usage(request: Request):
     """Get Claude Code usage limits via Anthropic API rate-limit headers."""
     if not _is_admin(request):
         raise HTTPException(status_code=401, detail="需要管理员权限")
-    import json as _json
-    creds_path = Path.home() / ".claude" / ".credentials.json"
-    if not creds_path.exists():
-        return {"error": "no_credentials", "message": "~/.claude/.credentials.json not found"}
-    try:
-        creds = _json.loads(creds_path.read_text())
-        token = creds["claudeAiOauth"]["accessToken"]
-        sub_type = creds["claudeAiOauth"].get("subscriptionType", "unknown")
-    except (KeyError, _json.JSONDecodeError):
-        return {"error": "invalid_credentials", "message": "Cannot parse credentials"}
+    result = _get_claude_oauth_token()
+    if not result:
+        return {"error": "no_credentials", "message": "无法获取 Claude OAuth token"}
+    token, sub_type = result
     import httpx
     try:
         resp = httpx.post(
